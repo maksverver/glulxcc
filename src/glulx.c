@@ -173,26 +173,39 @@ static void X(function)(Symbol f, Symbol caller[], Symbol callee[], int ncalls)
     print("\t\treturn 0\n\n");
 }
 
+static void gen_visit(Node p)
+{
+    static int num_args = 0;
+
+    if (p == NULL || p->x.listed) return;
+    p->x.listed = 1;
+
+    gen_visit(p->kids[0]);
+    gen_visit(p->kids[1]);
+
+    switch (generic(p->op))
+    {
+    case CALL:
+        if (4*num_args > staging_size)
+            staging_size = 4*num_args;
+        num_args = 0;
+        break;
+
+    case ARG:
+        assert(opsize(p->op) == 4);
+        ++num_args;
+        assert(p->x.argno == 0);
+        p->x.argno = num_args;
+        break;
+    }
+}
+
 static Node X(gen)(Node start)
 {
-    int num_args = 0;
     Node p;
     for (p = start; p; p = p->link)
     {
-        switch (generic(p->op))
-        {
-        case CALL:
-            if (4*num_args > staging_size)
-                staging_size = 4*num_args;
-            num_args = 0;
-            break;
-
-        case ARG:
-            assert(opsize(p->op) == 4);
-            ++num_args;
-            p->x.argno = num_args;
-            break;
-        }
+        gen_visit(p);
     }
     return start;
 }
@@ -474,16 +487,6 @@ static void X(progbeg)(int argc, char *argv[])
     parseflags(argc, argv);
 
     X(segment)(CODE);
-    print("\t:main\n");
-    print("\t\tdc.b 0xc0 4 2 0 0  ; stack-argument function with 2 locals\n");
-    print("\t\tsetiosys 2 0                 ; use glk\n");
-    print("\t\tcopy :callstack:0.l {0}.l    ; bp\n");
-    print("\t\tadd  {0}.l 8 {4}.l           ; sp\n");
-    print("\t\tastore {0}.l 0 0             ; argv\n");
-    print("\t\tastore {0}.l 4 0             ; argc\n");
-    print("\t\tcallfi %smain.l {4}.l ~      ; call real main function\n",
-          FUNC_PREFIX);
-    print("\t\tquit\n\n");
 }
 
 static void X(progend)(void)
