@@ -9,7 +9,7 @@ typedef unsigned int size_t;
 #define NULL ((void*)0)
 #endif
 
-const char *utoa(unsigned u)
+static const char *_utoa(unsigned u)
 {
 	static char buf[12] = { 0 };
 	char *p = &buf[11];
@@ -20,16 +20,16 @@ const char *utoa(unsigned u)
 	return p;
 }
 
-const char *itoa(int i)
+const char *_itoa(int i)
 {
 	const char *p;
 	if (i > 0)
 	{
-		p = utoa((unsigned)i);
+		p = _utoa((unsigned)i);
 	}
 	else
 	{
-		p = utoa((unsigned)-i);
+		p = _utoa((unsigned)-i);
 		*(char*)--p = '-';
 	}
 	return p;
@@ -49,14 +49,20 @@ int _write(const char *s)
 	return written;
 }
 
-int puts_(const char *s)
+int putchar(int c)
+{
+	glk_put_char(c);
+	return c;
+}
+
+int puts(const char *s)
 {
 	int n = _write(s);
 	putchar('\n');
 	return n + 1;
 }
 
-int printf_(const char *fmt, ...)
+int printf(const char *fmt, ...)
 {
 	int written = 0;
 	va_list ap;
@@ -83,11 +89,11 @@ int printf_(const char *fmt, ...)
 
 			case 'd':
 			case 'i':
-				written += _write(itoa(va_arg(ap, int)));
+				written += _write(_itoa(va_arg(ap, int)));
 				break;
 
 			case 'u':
-				written += _write(utoa(va_arg(ap, unsigned)));
+				written += _write(_utoa(va_arg(ap, unsigned)));
 				break;
 
 			case 'c':
@@ -108,5 +114,6 @@ int printf_(const char *fmt, ...)
 
 int main()
 {
-	printf_("%s %s! %d %% %c%c%c%c %d %d %f\n", "Hello", "world", 12345, 't', 'e', 's', 't', -2147483648, 2147483647);
+	printf("%s %s! %d %% %c%c%c%c %d %d %f\n", "Hello", "world", 12345, 't', 'e', 's', 't', -2147483647-1, 2147483647);
+	return 0;
 }

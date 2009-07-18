@@ -357,9 +357,9 @@ static void eval_to_stack(Node p)
             {
             case ADD:  op = "add"; break;
             case SUB:  op = "sub"; break;
-            case MUL:  op = "mul"; assert(optype(p->op) == I); break;
-            case DIV:  op = "div"; assert(optype(p->op) == I); break;
-            case MOD:  op = "mod"; assert(optype(p->op) == I); break;
+            case MUL:  op = "mul"; break;
+            case DIV:  op = "div"; break;
+            case MOD:  op = "mod"; break;
             case BAND: op = "bitand"; break;
             case BOR:  op = "bitor"; break;
             case BXOR: op = "bitxor"; break;
@@ -485,19 +485,10 @@ static void X(emit)(Node p)
 static void X(progbeg)(int argc, char *argv[])
 {
     parseflags(argc, argv);
-
-    X(segment)(CODE);
 }
 
 static void X(progend)(void)
 {
-    X(segment)(BSS);
-    print("\t:callstack\n"
-          "\t\tds.l 15360   ; 60 KB\n");
-
-    X(segment)(0);
-    print("ext 0\n");
-    print("stack 4096\n");
 }
 
 Interface glulxIR = {

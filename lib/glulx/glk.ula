@@ -10,6 +10,13 @@ section code
 	glk 0x23 5 (sp)
 	return (sp)
 
+:func@glk_window_close
+	dc.b 0xc1 4 1 0 0
+	aload {0}.l -2 (sp)
+	aload {0}.l -1 (sp)
+	glk 0x24 2 (sp)
+	return (sp)
+
 :func@glk_set_window
 	dc.b 0xc1 4 1 0 0
 	aload {0}.l -1 (sp)
@@ -25,5 +32,5 @@ section code
 :func@glk_put_char
 	dc.b 0xc1 4 1 0 0
 	aload {0}.l -1 (sp)
-	glk 0x80 (sp)
+	glk 0x80 1 (sp)
 	return (sp)

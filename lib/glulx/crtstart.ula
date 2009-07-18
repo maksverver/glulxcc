@@ -1,17 +1,19 @@
 	stack 4096
 	ext 61440   ; used for call stack
 
+section vdata
 :argv0
 	dc.b 109 97 105 110 0  ; "main"
 :argv
-	dc.l argv0
+	dc.l :argv0
 	dc.l 0
 
+section code
 :main
 	dc.b 0xc0 4 2 0 0  
 
 	; Initialize stack
-	copy (12) {0}.l		; bp <- extstart
+	copy (12).l {0}.l	; bp <- extstart
 	add  {0}.l 8 {4}.l	; sp <- bp + 8
 
 	; Open initial Glk (text) window and make it current
@@ -28,11 +30,11 @@
 	; Call real main function
 	astore {4}.l -1 1
 	astore {4}.l -2 :argv.l
-	callfi :func@main.l {4}.l ~
+	callfi :func@main {4}.l ~
 
 	; Close Glk window
 	astore {4}.l -1 (sp)
 	astore {4}.l -2 0
-	callfi glk_window_close {4}.l ~
+	callfi :func@glk_window_close {4}.l ~
 
 	quit

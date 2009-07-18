@@ -1,0 +1,110 @@
+#!/usr/bin/env perl
+
+use strict;
+
+my $LCCDIR = '/usr/local/lib/lcc/';
+
+my $MKTEMP  = '/usr/bin/mktemp';
+my $CPP     = $LCCDIR.'cpp';
+my $GLULXA  = $LCCDIR.'glulxa';
+my $RCC     = $LCCDIR.'rcc';
+my $INCDIR  = $LCCDIR.'include/glulx/';
+my $LIBDIR  = $LCCDIR.'lib/glulx/';
+
+my @input = ();
+my $output = 'a.ulx';
+
+my @stdlibs = qw(crtstart.ula glk.ula printf.c string.c);
+for my $lib (@stdlibs) { $input[$#input + 1] = $LIBDIR.$lib; }
+
+sub parse_args
+{
+    my $i = 0;
+    while ($i <= $#ARGV)
+    {
+        my $arg = $ARGV[$i++];
+        last if ($arg eq '--');
+
+        if (substr($arg, 0, 1) ne '-') { $input[$#input + 1] = $arg; next; }
+
+        if (substr($arg, 1, 1) eq 'o') {
+            $output = substr($arg, 2) || $ARGV[$i++];
+        } else {
+            die "Unknown option: $arg";
+        }
+    }
+    while ($i < $#ARGV) { $input[$#input + 1] = $ARGV[$i++]; }
+}
+
+sub tmpfile()
+{
+    my $path = `$MKTEMP`;
+    chomp $path;
+    die "mktemp failed" unless $path;
+    return $path;
+}
+
+sub copyout
+{
+    my $arg = shift;
+    open INPUT, '<', $arg or die "Couldn't open $arg";
+    print OUTPUT <INPUT>;
+    close INPUT;
+}
+
+sub check_labels
+{
+    my $arg = shift;
+    open INPUT, $arg or die "Couldn't open $arg";
+    my %defined = ();
+    my %referenced = ();
+    while (my $line = <INPUT>)
+    {
+        if ($line =~ /^\s*(:[^\s:.]+)/) { ++$defined{$1}; }
+        while ($line =~ m/\s(:[^\s:.]+)/g) { ++$referenced{$1}; }
+    }
+    close INPUT;
+
+    for my $label (keys(%referenced)) {
+        if (!$defined{$label}) {
+            print "WARNING: undefined reference to label $label!\n";
+        }
+    }
+    for my $label (keys(%defined)) {
+        if ($defined{$label} > 1) {
+            print "WARNING: label $label defined $defined{$label} times!\n";
+        }
+    }
+}
+
+parse_args();
+
+my $outfile = tmpfile;
+open OUTPUT, '>', $outfile;
+
+for my $in (@input) {
+    if ($in =~ /\.c$/) {
+        my $ifile = tmpfile();
+        my $afile = tmpfile();
+        system($CPP, "-Dglulx", "-D__glulx__", "-I".$INCDIR, "--", $in, $ifile)
+            == 0 or die "Couldn't preprocess $in into $ifile";
+        system($RCC, "-target=glulx", $ifile, $afile)
+            == 0 or die "Couldn't compile $ifile into $afile";
+        copyout $afile;
+        unlink $ifile;
+        unlink $afile;
+    } elsif ($in =~ /\.ula$/) {
+        copyout $in;
+    } else {
+        die "Unrecognized file type: $in";
+    }
+}
+
+close OUTPUT;
+
+check_labels $outfile;
+
+system($GLULXA, "-i", $outfile, "-o", $output) == 0 or
+    die("Couldn't assemble $outfile into $output");
+#unlink($outfile);
+print "$outfile\n";

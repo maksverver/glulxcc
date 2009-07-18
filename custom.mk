@@ -1,2 +1,2 @@
 BUILDDIR=build
-HOSTFILE=etc/linux.c
+HOSTFILE=etc/glulx.c
