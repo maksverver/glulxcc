@@ -16,8 +16,8 @@ include $(CUSTOM)
 B=$(BUILDDIR)/
 T=$(TSTDIR)/
 
-what:
-	-@echo make all rcc lburg cpp lcc bprint liblcc triple clean clobber
+#what:
+#	-@echo make all rcc lburg cpp lcc bprint liblcc triple clean clobber
 
 all::	rcc lburg cpp lcc bprint liblcc
 
@@ -62,7 +62,8 @@ RCCOBJS=$Balloc$O \
 	$Bsparc$O \
 	$Bstab$O \
 	$Bx86$O \
-	$Bx86linux$O
+	$Bx86linux$O \
+	$Bglulx$O
 
 $Brcc$E::	$Bmain$O $Blibrcc$A $(EXTRAOBJS)
 		$(LD) $(LDFLAGS) -o $@ $Bmain$O $(EXTRAOBJS) $Blibrcc$A $(EXTRALIBS)
@@ -108,6 +109,7 @@ $Bmips$O:	$Bmips.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bmips.c
 $Bsparc$O:	$Bsparc.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bsparc.c
 $Bx86$O:	$Bx86.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bx86.c
 $Bx86linux$O:	$Bx86linux.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ $Bx86linux.c
+$Bglulx$O:	src/glulx.c;	$(CC) $(CFLAGS) -c -Isrc -o $@ src/glulx.c
 
 $Bdagcheck.c:	$Blburg$E src/dagcheck.md; $Blburg src/dagcheck.md $@
 $Balpha.c:	$Blburg$E src/alpha.md;    $Blburg src/alpha.md    $@
@@ -263,7 +265,8 @@ RCCSRCS=src/alloc.c \
 	$Bmips.c \
 	$Bsparc.c \
 	$Bx86linux.c \
-	$Bx86.c
+	$Bx86.c \
+	src/glulx.c
 
 C=$Blcc -A -d0.6 -Wo-lccdir=$(BUILDDIR) -Isrc -I$(BUILDDIR)
 triple:	$B2rcc$E
