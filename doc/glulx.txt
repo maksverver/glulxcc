@@ -1,0 +1,8 @@
+BUGS:
+ - division/remainder operations operate on signed integers only
+ - no support for struct parameters/return values/locals yet? (need to check)
+
+Label scoping problems:
+ - static functions are not local to function scope when using glulxcc driver
+ - label_name() still doesn't work correctly if static functions with the same
+   name occur in more than one compilation unit.

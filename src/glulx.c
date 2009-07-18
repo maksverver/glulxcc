@@ -6,6 +6,7 @@
 #define VAR_PREFIX   ":var@"
 
 static int cur_seg = 0;
+static Symbol cur_func;
 
 /* Used when emiting a function (and reset for each function): */
 static int params_size;     /* size of formal parameter area */
@@ -117,18 +118,24 @@ static void X(segment)(int seg)
 
 static void X(function)(Symbol f, Symbol caller[], Symbol callee[], int ncalls)
 {
-    Symbol *pp, p;
-
+    cur_func = f;
     params_size  = 0;
     locals_size  = 0;
     staging_size = 0;
 
     /* Find offsets for parameters (relative to base pointer) */
-    for (pp = callee; (p = *pp) != NULL; ++pp)
     {
-        assert(p->scope == PARAM);
-        params_size = roundup(params_size + p->type->size, p->type->align);
-        p->x.offset = -params_size;
+        int i;
+        for (i = 0; caller[i] != NULL && callee[i] != NULL; ++i)
+        {
+            assert(callee[i]->scope == PARAM);
+            assert(caller[i]->type->size <= 4);
+            assert(callee[i]->type->size <= 4);
+            params_size = roundup(params_size + 4, 4);
+            caller[i]->x.offset = -params_size;
+            callee[i]->x.offset = -params_size;
+        }
+        assert(caller[i] == NULL && callee[i] == NULL);
     }
 
     /* Gencode counts size used by locals/function calls */
@@ -358,8 +365,8 @@ static void eval_to_stack(Node p)
             case ADD:  op = "add"; break;
             case SUB:  op = "sub"; break;
             case MUL:  op = "mul"; break;
-            case DIV:  op = "div"; break;
-            case MOD:  op = "mod"; break;
+            case DIV:  op = "div"; break;  /* FIXME: doesn't work for unsigned! */
+            case MOD:  op = "mod"; break;  /* FIXME: doesn't work for unsigned! */
             case BAND: op = "bitand"; break;
             case BOR:  op = "bitor"; break;
             case BXOR: op = "bitxor"; break;
@@ -374,6 +381,11 @@ static void eval_to_stack(Node p)
 
     default: assert(0);
     }
+}
+
+static const char *label_name(Symbol sym)
+{
+    return stringf("%s%s@%s", LABEL_PREFIX, cur_func->name, sym->name);
 }
 
 static void X(emit)(Node p)
@@ -425,12 +437,11 @@ static void X(emit)(Node p)
 
         case JUMP:
             assert(p->kids[0]->op == ADDRG + P + sizeop(4));
-            assert(p->kids[0]->syms[0]->scope == LABELS);
-            print("\t\tjump %s%s\n", LABEL_PREFIX, p->kids[0]->syms[0]->name);
+            print("\t\tjump %s\n", label_name(p->kids[0]->syms[0]));
             break;
 
         case LABEL:
-            print("\t%s%s\n", LABEL_PREFIX, p->syms[0]->name);
+            print("\t%s\n", label_name(p->syms[0]));
             break;
 
         case EQ:
@@ -467,8 +478,7 @@ static void X(emit)(Node p)
                 assert(op != NULL);
                 assert(p->syms[0]->scope == LABELS);
 
-                print("\t\t%s (sp) (sp) %s%s\n",
-                      op, LABEL_PREFIX, p->syms[0]->name);
+                print("\t\t%s (sp) (sp) %s\n", op, label_name(p->syms[0]));
             } break;
 
         case RET:
