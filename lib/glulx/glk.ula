@@ -1,0 +1,29 @@
+section code
+
+:func@glk_window_open
+	dc.b 0xc1 4 1 0 0
+	aload {0}.l -5 (sp)
+	aload {0}.l -4 (sp)
+	aload {0}.l -3 (sp)
+	aload {0}.l -2 (sp)
+	aload {0}.l -1 (sp)
+	glk 0x23 5 (sp)
+	return (sp)
+
+:func@glk_set_window
+	dc.b 0xc1 4 1 0 0
+	aload {0}.l -1 (sp)
+	glk 0x2f 1 (sp)
+	return (sp)
+
+:func@glk_put_string
+	dc.b 0xc1 4 1 0 0
+	aload {0}.l -1 (sp)
+	glk 0x82 1 (sp)
+	return (sp)
+
+:func@glk_put_char
+	dc.b 0xc1 4 1 0 0
+	aload {0}.l -1 (sp)
+	glk 0x80 (sp)
+	return (sp)
