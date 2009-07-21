@@ -1,0 +1,83 @@
+Numbers are stored in 32 bits (4 octets) in big endian order.
+
+TODO: make this into an IFF format?
+
+Header
+    8   glulxobj
+    4   version number (1)
+    4   reserved (0)
+
+Code table
+    4   total table size (S; multiple of 4)
+    4   number of sections (N)
+    For each section:
+        4   section type (0:code, 1:data, 2:vcode, 3:vdata, 4:bss)
+        4   data size (D) padded to 4 bytes
+        0/D section data
+            (if section type == bss, no section data is included)
+    End of section entry
+
+Import table
+    4   total table size (S; multiple of 4)
+    4   number of entries (N)
+    For each entry:
+    4   name (offset relative to start of import table)
+    End of entry
+ S-8-4N string data (ends with a zero)
+
+Export table
+    4   total table size (S; multiple of 4)
+    4   number of entries (N)
+    For each entry:
+    4   name (offset relative to start of export table)
+    4   section
+    4   offset
+    End of entry
+S-8-12N string data (ends with a zero)
+
+Cross-references
+    4   total table size
+    4   number of entries (N)
+    For each entry:
+    4   patched section
+    4   patched offset
+    4   referenced section (for internal references)
+    4   referenced offset  (for internal references)
+        (For external references, the referenced section is set to -1, and the
+         referenced offset is an index into the import table instead.)
+    End of entry
+
+The linker takes a series of Glulx object files and creates a single executable
+module. This starts by loading all modules and resolving imported symbols. Then,
+the section containing the start symbol (by default: "main") is looked up, and
+a reachability analysis is performed from the section containing the start
+symbol.
+
+All reachable sections are renumbered consecutively ordered by:
+ 1. section type (ROM: code, data, RAM: vcode, vdata, EXT: bss)
+ 2. object file order on the command line
+ 3. section index in the original object file
+
+Now the section addresses are calculated. Sections of size 0, 1 or 3 are aligned
+to 1-byte boundaries, sections of size 2 are aligned to 2-byte boundaries, and
+sections of size 4 and over are aligned to 4 byte boundaries. Extra padding is
+insert after the last code/data, vcode/vdata and bss sections to align the ROM,
+RAM and EXT sections to 256 bytes.
+
+Finally, cross-references are resolved. For each cross reference, the 32-bit
+referenced address is added to whatever data is already present at the patched
+offset (in big-endian byte order); this will often be zero, but it doesn't have
+to be!
+
+Now all sections have fixed addresses and all cross-references have been
+resolved, so the compiler writes out the complete Glulx module:
+    ROM:
+        header
+        code sections
+        data sections
+    RAM:
+        vcode sections
+        vdata sections
+    EXTSTART:
+        bss sections
+    EXTEND.

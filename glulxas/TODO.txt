@@ -1,0 +1,8 @@
+gnuas:
+  - build import table
+  - build xref table
+  - write import table
+  - write xref table
+
+gnuld:
+  - implement it :-)
