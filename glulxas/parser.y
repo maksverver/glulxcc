@@ -116,7 +116,7 @@ static void emit_string(const char *str)
 
 %token ERROR
 %token SECTION CODE DATA VCODE VDATA BSS
-%token STACK EXT EXPORT
+%token STACK EXT EXPORT IMPORT
 %token LABELDEF LABELREF
 %token OPCODE
 %token DC DS SZB SZS SZL
@@ -135,17 +135,21 @@ statements : statements statement
 
 statement : section_stmt
           | export_stmt
+          | import_stmt
           | optlabeldefs data_stmt
           | optlabeldefs code_stmt
           | STACK INT { set_stack_size(atoi(yytext)); }
           | EXT INT   { set_ext_size(atoi(yytext)); }
           ;
 
-export_stmt : EXPORT
-              { const char *s = yytext;
-                while (!isspace(*s)) ++s;
-                while ( isspace(*s)) ++s;
-                def_export(s); }
+export_stmt : EXPORT { const char *s = yytext;
+                       while (!isspace(*s)) ++s;
+                       while ( isspace(*s)) ++s;
+                       def_export(s); }
+            ;
+
+import_stmt : IMPORT { fprintf(stderr, "WARNING: import statement ignored "
+                                       "on line %d\n", lineno); }
             ;
 
 optlabeldefs : optlabeldefs LABELDEF
@@ -153,7 +157,7 @@ optlabeldefs : optlabeldefs LABELDEF
              | ;
 
 data_stmt : DC data_size data_literals
-          | DS data_size INT { emit_blank(atoi(yytext)); }
+          | DS data_size INT { emit_blank((uint)cur_size*atoi(yytext)); }
           ;
 
 data_literals : data_literals data_literal
@@ -193,7 +197,7 @@ literal : int_literal
         | LABELREF { parse_labelref(yytext); } optszpf
         ;
 int_literal
-        : INT { cur_lit.label = NULL; cur_lit.adjust = atoi(yytext); } optszpf
+        : INT { cur_lit.label = NULL; sscanf(yytext, "%i", &cur_lit.adjust); } optszpf
         ;
 
 section_stmt : SECTION CODE  { begin_section(SECTION_CODE); }

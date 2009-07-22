@@ -1,8 +1,8 @@
 gnuas:
-  - build import table
-  - build xref table
-  - write import table
-  - write xref table
+  - more extensive testing
+  - RAM-relative addressing?
 
 gnuld:
-  - implement it :-)
+  - more extensive testing
+  - RAM-relative addressing?
+  - support for static archives (ar?)

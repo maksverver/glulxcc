@@ -5,7 +5,7 @@ TODO: make this into an IFF format?
 Header
     8   glulxobj
     4   version number (1)
-    4   reserved (0)
+    4   minimum stack size
 
 Code table
     4   remaining table size (S; multiple of 4)
@@ -23,7 +23,7 @@ Import table
     For each entry:
     4   name (offset relative to start of import table)
     End of entry
- S-8-4N string data (ends with a zero)
+ S-4-4N string data (ends with a zero)
 
 Export table
     4   remaining table size (S; multiple of 4)
@@ -33,7 +33,7 @@ Export table
     4   section
     4   offset
     End of entry
-S-8-12N string data (ends with a zero)
+S-4-12N string data (ends with a zero)
 
 Cross-references
     4   remaining table size (S; multiple of 4)
@@ -49,11 +49,11 @@ Cross-references
 
 The linker takes a series of Glulx object files and creates a single executable
 module. This starts by loading all modules and resolving imported symbols. Then,
-the section containing the start symbol (by default: "main") is looked up, and
-a reachability analysis is performed from the section containing the start
-symbol.
+the sections containing the start symbol (by default: "main") and the (optional)
+initial decoding table ("decodingtbl") are looked up, and a reachability
+analysis is performed from the section containing the start symbol.
 
-All reachable sections are renumbered consecutively ordered by:
+All reachable sections are reordered by:
  1. section type (ROM: code, data, RAM: vcode, vdata, EXT: bss)
  2. object file order on the command line
  3. section index in the original object file
@@ -70,7 +70,7 @@ offset (in big-endian byte order); this will often be zero, but it doesn't have
 to be!
 
 Now all sections have fixed addresses and all cross-references have been
-resolved, so the compiler writes out the complete Glulx module:
+resolved. The compiler constructs the compiler 
     ROM:
         header
         code sections
@@ -81,3 +81,8 @@ resolved, so the compiler writes out the complete Glulx module:
     EXTSTART:
         bss sections
     EXTEND.
+
+Unsupported features:
+ - RAM-relative addresses
+ - cross-section relative jumps
+

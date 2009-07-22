@@ -1,0 +1,58 @@
+Glulx assembler and linker v1.0
+By Maks Verver <maksverver@geocities.com>
+
+Mostly compatible with glulxa 0.5 by Carlos Sánchez and Simon Stapleton, but
+with some additional features that make it more suitable for use as part of
+a compiler toolchain:
+ - Assembling and linking are separate steps, with an object format in between
+   to contain assembled (but not yet linked) code; symbols to be exported must
+   be marked explicitly with the export keyword (symbols that are not resolved
+   in a single translation unit are marked as imported symbols implicitly).
+ - Data defined in separate sections (i.e. separated by a section directive) is
+   candidate for deletion when linking is performed: all sections that are not
+   referenced directly or indirectly from the sections in which the application
+   entry point or the initial encoding table 
+
+Additionally, code generation is slightly different:
+ - Size prefixes are ignored (all operand sizes are computed automatically)
+   but they are recognized to stay compatible with glulxa.
+ - A two-pass assembler process to compact operands results in a compact
+   encoding of constants, local variable references and branch offsets.
+
+Usage:
+
+  glulxas input.ula output.ulo
+
+    Assembles the file input.ula and creates an object file called output.ulo.
+    If the second operand is omitted, the object file name is chosen
+    automatically by taking the input file's base name and appending ".ulo".
+    Finally, if no arguments are given, the assembler reads from standard input
+    and writes the resultin gobject file to standard output
+
+  glulxld -o output.ulx input1.ulo input2.ulo input3.ulo ..etc..
+
+    Links the input files (which must be object files created with glulxas) and
+    creates a complete version 3.1.1 Glulx module called output.ulx. If no name
+    is given for the output filename, output is written to a.ulx by default.
+
+Notes:
+
+The exported symbol "main" determines the application entry point. If it is not
+defined, the start of the first code section is used instead, or the start of
+the first vcode section if no code sections exist.
+
+The exported symbol "decodingtbl" determines the value for the initial decoding
+table. If it is not defined, not initial decoding table is set.
+
+Each object file can specify a stack size (with the stack directive); the final
+stack size for the linked module is the maximum of the stack sizes defined in
+all modules, rounded up to a 256 byte boundary, with a minimum of 256.
+
+Although the extsize directive is recognized for compatibility with glulxa, it
+is ignored by the assembler. To allocate memory past the extstart boundary,
+define data in the new bss section.
+
+Bugs/limitations:
+ - support for RAM-relative memory references is not implemented yet.
+ - branch offsets are computed correctly only for section-local label
+   references.

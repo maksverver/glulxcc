@@ -4,49 +4,48 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
 #include <unistd.h>
 
 /* Current module settings: */
-static unsigned stack_size;
-static unsigned ext_size;
+static uint stack_size;
+static uint ext_size;
 
 /* Imported/exported symbols */
-static unsigned nimport;
+static uint nimport;
 static char **imports;
-static unsigned nexport;
+static uint nexport;
 static char **exports;
 
 /* Assembled sections */
-static unsigned nsection;
+static uint nsection;
 static struct section *sections;
-static unsigned nglobaldef;
+static uint nglobaldef;
 static struct labeldef *globaldefs;
-static unsigned nglobalref;
+static uint nglobalref;
 static struct labelref *globalrefs;
 
 /* For assembling sections: */
 static enum secttype cur_secttype = SECTION_INVALID;
-static unsigned npiece;
+static uint npiece;
 static struct piece *pieces;
-static unsigned ndef;
-static struct localdef { char *label; unsigned piece; } *defs;
+static uint ndef;
+static struct localdef { char *label; uint piece; } *defs;
 
 #define resize(elem, new_size) \
     do_resize((void**)&elem##s, &n##elem, sizeof(*elem##s), new_size)
 
 /* Returns the smallest power-of-two no smaller than `size'. */
-static unsigned cap(unsigned size)
+static uint cap(uint size)
 {
-    unsigned res;
+    uint res;
     if (size == 0) return 0;
     res = 1;
     while (res < size) res += res;
     return res;
 }
 
-static void do_resize( void **data, unsigned *size, size_t elem_size,
-                       unsigned new_size )
+static void do_resize( void **data, uint *size, size_t elem_size,
+                       uint new_size )
 {
     if (cap(*size) != cap(new_size))
     {
@@ -77,34 +76,34 @@ static void warning(const char *fmt, ...)
     fprintf(stderr, "WARNING: %s.\n", buf);
 }
 
-void set_stack_size(unsigned size)
+void set_stack_size(uint size)
 {
     if (stack_size != 0) warning("stack size redefined");
     stack_size = size;
 }
 
-void set_ext_size(unsigned size)
+void set_ext_size(uint size)
 {
     if (ext_size != 0) warning("ext size redefined");
     if (ext_size == 0) warning("ext size explicitly defined");
     ext_size = size;
 }
 
-unsigned sint_size(int i)
+uint sint_size(int i)
 {
-    if ( (int8_t)i == i) return 1;
-    if ((int16_t)i == i) return 2;
+    if (i >=   -128 && i <   128) return 1;
+    if (i >= -32768 && i < 32767) return 2;
     return 4;
 }
 
-unsigned uint_size(unsigned u)
+uint uint_size(uint u)
 {
-    if ( (uint8_t)u == u) return 1;
-    if ((uint16_t)u == u) return 2;
+    if (u <   256) return 1;
+    if (u < 65536) return 2;
     return 4;
 }
 
-unsigned opcode_size(unsigned opcode)
+uint opcode_size(uint opcode)
 {
     if (opcode <       0x80) return 1;
     if (opcode <     0x4000) return 2;
@@ -113,9 +112,9 @@ unsigned opcode_size(unsigned opcode)
     return 0;
 }
 
-void encode_opcode(unsigned opcode, void *buf)
+void encode_opcode(uint opcode, void *buf)
 {
-    unsigned char *bytes = buf;
+    uchar *bytes = buf;
     if (opcode < 0x80)
     {
         bytes[0] = opcode;
@@ -142,7 +141,7 @@ void encode_opcode(unsigned opcode, void *buf)
 
 /* Returns the minimum size required to encode operand o,
    assuming label references will take the full 32-bit size. */
-unsigned operand_size(const struct operand *o)
+uint operand_size(const struct operand *o)
 {
     if (o->type == OPER_STACK) return 0;
     if (o->value.label != NULL) return 4;
@@ -159,18 +158,18 @@ unsigned operand_size(const struct operand *o)
 
 void set_operand_sizes(struct instruction *i)
 {
-    unsigned nparam = strlen(i->o->parameters), n;
+    uint nparam = strlen(i->o->parameters), n;
     for (n = 0; n < nparam; ++n)
     {
         i->opers[n].size = operand_size(&i->opers[n]);
     }
 }
 
-unsigned piece_size(const struct piece *p)
+uint piece_size(const struct piece *p)
 {
     if (p->i != NULL)
     {
-        unsigned res = 0, nparam = strlen(p->i->o->parameters), n;
+        uint res = 0, nparam = strlen(p->i->o->parameters), n;
         res += opcode_size(p->i->o->opcode);
         res += (nparam + 1)/2;  /* operand types */
         for (n = 0; n < nparam; ++n) res += p->i->opers[n].size;
@@ -189,16 +188,16 @@ unsigned piece_size(const struct piece *p)
 /* Returns the offset for a relative jump from instruction `p' to instruction
    `q' adding adjustment `adjust'. Assumes sizes and offsets for pieces are
    fixed. */
-int relative_offset(const struct piece *p, const struct piece *q, int adjust)
+int branch_address(const struct piece *p, const struct piece *q, int adjust)
 {
-    return q->offset - (p->offset + p->size) + adjust;
+    return q->offset - (p->offset + p->size) + adjust + 2;
 }
 
 /* Resolves a label reference to a section piece, or returns NULL if
    none is found. */
 const struct piece *label_to_piece(const char *label)
 {
-    unsigned n;
+    uint n;
     for (n = 0; n < ndef; ++n)
     {
         if (strcmp(defs[n].label, label) == 0)
@@ -209,9 +208,9 @@ const struct piece *label_to_piece(const char *label)
     return NULL;
 }
 
-void encode_int(unsigned value, unsigned size, void *buf)
+void encode_int(uint value, uint size, void *buf)
 {
-    unsigned char *bytes = buf;
+    uchar *bytes = buf;
     switch (size)
     {
     case 1:
@@ -232,7 +231,7 @@ void encode_int(unsigned value, unsigned size, void *buf)
 }
 
 /* Declare a cross-section label reference */
-void ref_label(const char *label, unsigned offset)
+void ref_label(const char *label, uint offset)
 {
     resize(globalref, nglobalref + 1);
     globalrefs[nglobalref - 1].label   = strdup(label);
@@ -264,7 +263,7 @@ void set_piece_data(struct piece *p)
     assert(p->data != NULL);
     if (p->i != NULL)
     {
-        unsigned nparam = strlen(p->i->o->parameters), n;
+        uint nparam = strlen(p->i->o->parameters), n;
         char *pos = p->data;
 
         encode_opcode(p->i->o->opcode, pos);
@@ -281,10 +280,10 @@ void set_piece_data(struct piece *p)
             case OPER_CONST:
                 switch (oper->size)
                 {
-                case 0: type = 0x00;
-                case 1: type = 0x01;
-                case 2: type = 0x02;
-                case 4: type = 0x03;
+                case 0: type = 0x00; break;
+                case 1: type = 0x01; break;
+                case 2: type = 0x02; break;
+                case 4: type = 0x03; break;
                 }
                 break;
 
@@ -293,10 +292,10 @@ void set_piece_data(struct piece *p)
             case OPER_ROMREF:
                 switch (oper->size)
                 {
-                case 0: assert(0);
-                case 1: type = 0x05;
-                case 2: type = 0x06;
-                case 4: type = 0x07;
+                case 0: assert(0); break;
+                case 1: type = 0x05; break;
+                case 2: type = 0x06; break;
+                case 4: type = 0x07; break;
                 }
                 break;
 
@@ -307,10 +306,10 @@ void set_piece_data(struct piece *p)
             case OPER_LOCAL:
                 switch (oper->size)
                 {
-                case 0: assert(0);
-                case 1: type = 0x09;
-                case 2: type = 0x0A;
-                case 4: type = 0x0B;
+                case 0: assert(0); break;
+                case 1: type = 0x09; break;
+                case 2: type = 0x0A; break;
+                case 4: type = 0x0B; break;
                 }
                 break;
 
@@ -334,7 +333,7 @@ void set_piece_data(struct piece *p)
             if (oper->ref != NULL)
             {
                 /* This is an IP-relative branch offset */
-                encode_int(relative_offset(p, oper->ref, oper->value.adjust),
+                encode_int(branch_address(p, oper->ref, oper->value.adjust),
                            oper->size, pos);
             }
             else
@@ -387,7 +386,7 @@ void set_piece_data(struct piece *p)
 void end_section()
 {
     struct section *section;
-    unsigned n, offset;
+    uint n, offset;
 
     if (cur_secttype == SECTION_INVALID) fatal("no section declared");
 
@@ -408,7 +407,7 @@ void end_section()
         if (pieces[n].i != NULL)
         {
             const char *params = pieces[n].i->o->parameters;
-            unsigned p, nparam = strlen(params);
+            uint p, nparam = strlen(params);
             for (p = 0; p < nparam; ++p)
             {
                 struct operand *oper = &pieces[n].i->opers[p];
@@ -427,7 +426,7 @@ void end_section()
                 oper->ref = label_to_piece(oper->value.label);
                 if (oper->ref == NULL) fatal("couldn't resolve branch operand");
 
-                oper->size = sint_size(relative_offset(
+                oper->size = sint_size(branch_address(
                     &pieces[n], oper->ref, oper->value.adjust ));
             }
         }
@@ -444,9 +443,7 @@ void end_section()
 
     /* Pass 4: sizes, offsets and operand sizes are known; encode data */
     for (n = 0; n < npiece; ++n)
-    {
         set_piece_data(&pieces[n]);
-    }
 
     /* Move local label definitions over to global list */
     resize(globaldef, nglobaldef + ndef);
@@ -516,32 +513,32 @@ struct literal *dup_literal(const struct literal *l)
 
 static void add_piece( const struct instruction *i,
                        const struct literal *l,
-                       unsigned size, char *data )
+                       uint size, char *data )
 {
     resize(piece, npiece + 1);
     pieces[npiece - 1].i      = dup_instruction(i);
     pieces[npiece - 1].l      = dup_literal(l);
-    pieces[npiece - 1].offset = (unsigned)-1;
+    pieces[npiece - 1].offset = (uint)-1;
     pieces[npiece - 1].size   = size;
     pieces[npiece - 1].data   = dup_data(data, size);
 }
 
-void emit_blank(unsigned count)
+void emit_blank(uint count)
 {
     add_piece(NULL, NULL, count, NULL);
 }
 
 void emit_data(const struct literal *lit, enum opersize size)
 {
-    add_piece(NULL, lit, (unsigned)size, NULL);
+    add_piece(NULL, lit, (uint)size, NULL);
 }
 
 void emit_instr(const struct instruction *instr)
 {
-    add_piece(instr, NULL, (unsigned)-1, NULL);
+    add_piece(instr, NULL, (uint)-1, NULL);
 }
 
-static void write_int(FILE *fp, unsigned value)
+static void write_int(FILE *fp, uint value)
 {
     fputc((value>>24)&0xff, fp);
     fputc((value>>16)&0xff, fp);
@@ -549,22 +546,22 @@ static void write_int(FILE *fp, unsigned value)
     fputc((value>> 0)&0xff, fp);
 }
 
-static unsigned roundup(unsigned n, unsigned align)
+static uint roundup(uint n, uint align)
 {
-    unsigned m = n%align;
+    uint m = n%align;
     if (m != 0) n += align - m;
     return n;
 }
 
-static void write_padding(FILE *fp, unsigned n, unsigned align)
+static void write_padding(FILE *fp, uint n, uint align)
 {
-    unsigned m = roundup(n, align);
+    uint m = roundup(n, align);
     for (; n < m; ++n) fputc(0, fp);
 }
 
 static void write_code_table(FILE *fp)
 {
-    unsigned total_size = 4, n;
+    uint total_size = 4, n;
     for (n = 0; n < nsection; ++n)
     {
         total_size += 8;
@@ -591,7 +588,7 @@ static void write_code_table(FILE *fp)
    imported only once). */
 static void create_imports()
 {
-    unsigned r, d;  /* current globalref & globaldef*/
+    uint r, d;  /* current globalref & globaldef*/
     int diff;
 
     assert(nimport == 0);
@@ -620,7 +617,7 @@ static void create_imports()
 
 static void write_import_table(FILE *fp)
 {
-    unsigned total_size = 4, n, str_offset;
+    uint total_size = 4, n, str_offset;
     for (n = 0; n < nimport; ++n)
         total_size += 4 + strlen(imports[n]) + 1;
     write_int(fp, roundup(total_size, 4));
@@ -641,7 +638,7 @@ static void write_import_table(FILE *fp)
 
 static void write_export_table(FILE *fp)
 {
-    unsigned total_size = 4, n, str_offset, def = 0;
+    uint total_size = 4, n, str_offset, d = 0;
     for (n = 0; n < nexport; ++n)
         total_size += 12 + strlen(exports[n]) + 1;
     write_int(fp, roundup(total_size, 4));
@@ -650,17 +647,17 @@ static void write_export_table(FILE *fp)
     for (n = 0; n < nexport; ++n)
     {
         /* Find matching section */
-        for ( ; def < nglobaldef; ++def)
+        for ( ; d < nglobaldef; ++d)
         {
-            if (strcmp(exports[n], globaldefs[def].label) == 0) break;
+            if (strcmp(exports[n], globaldefs[d].label) == 0) break;
         }
-        if (def == nglobaldef)
+        if (d == nglobaldef)
             fatal("no label corresponding to exported symbol \"%s\"", exports[n]);
 
         write_int(fp, str_offset);
         str_offset += strlen(exports[n]) + 1;
-        write_int(fp, globaldefs[n].section);
-        write_int(fp, globaldefs[n].offset);
+        write_int(fp, globaldefs[d].section);
+        write_int(fp, globaldefs[d].offset);
     }
     for (n = 0; n < nexport; ++n)
     {
@@ -672,7 +669,7 @@ static void write_export_table(FILE *fp)
 
 static void write_xref_table(FILE *fp)
 {
-    unsigned r, d, i;  /* current globalref, globaldef and import */
+    uint r, d, i;  /* current globalref, globaldef and import */
     write_int(fp, 4 + 16*nglobalref);
     write_int(fp, nglobalref);
 
@@ -720,7 +717,7 @@ static int cmp_exports(const void *a, const void *b)
 
 static void sort_exports()
 {
-    unsigned i, j;
+    uint i, j;
 
     /* Sort by label name: */
     qsort(exports, nexport, sizeof(char*), cmp_exports);
@@ -743,7 +740,7 @@ static int cmp_globaldef(const void *a, const void *b)
 
 static void sort_globaldefs()
 {
-    unsigned n;
+    uint n;
 
     /* Sort by label name: */
     qsort(globaldefs, nglobaldef, sizeof(struct labeldef), cmp_globaldef);
@@ -771,7 +768,7 @@ static void write_object_file(FILE *fp)
 {
     fwrite("glulxobj", 1, 8, fp);
     write_int(fp, 1);  /* version */
-    write_int(fp, 0);  /* reserved */
+    write_int(fp, stack_size);
     write_code_table(fp);
     write_import_table(fp);
     write_export_table(fp);
@@ -791,6 +788,7 @@ int main(int argc, char *argv[])
     if (argc > 3)
     {
         printf("usage: glulxas [<input> [<output>]]\n");
+        return 1;
     }
 
     if (argc >= 2)
