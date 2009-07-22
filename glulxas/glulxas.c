@@ -11,7 +11,9 @@
 static unsigned stack_size;
 static unsigned ext_size;
 
-/* Exported symbols */
+/* Imported/exported symbols */
+static unsigned nimport;
+static char **imports;
 static unsigned nexport;
 static char **exports;
 
@@ -291,6 +293,7 @@ void set_piece_data(struct piece *p)
             case OPER_ROMREF:
                 switch (oper->size)
                 {
+                case 0: assert(0);
                 case 1: type = 0x05;
                 case 2: type = 0x06;
                 case 4: type = 0x07;
@@ -304,6 +307,7 @@ void set_piece_data(struct piece *p)
             case OPER_LOCAL:
                 switch (oper->size)
                 {
+                case 0: assert(0);
                 case 1: type = 0x09;
                 case 2: type = 0x0A;
                 case 4: type = 0x0B;
@@ -323,10 +327,17 @@ void set_piece_data(struct piece *p)
         }
         pos += (nparam + 1)/2;
 
+        /* Encode operand values */
         for (n = 0; n < nparam; ++n)
         {
             const struct operand *oper = &p->i->opers[n];
-            if (oper->ref == NULL)
+            if (oper->ref != NULL)
+            {
+                /* This is an IP-relative branch offset */
+                encode_int(relative_offset(p, oper->ref, oper->value.adjust),
+                           oper->size, pos);
+            }
+            else
             {
                 switch (oper->type)
                 {
@@ -347,18 +358,10 @@ void set_piece_data(struct piece *p)
                     break;
 
                 case OPER_RAMREF:
-                    assert(0);
-                    break;
-
                 default:
                     assert(0);
                     break;
                 }
-            }
-            else
-            {
-                encode_int(relative_offset(p, oper->ref, oper->value.adjust),
-                           oper->size, pos);
             }
             pos += oper->size;
         }
@@ -582,11 +585,58 @@ static void write_code_table(FILE *fp)
     }
 }
 
+/* Create the import table, assuming globalrefs and globaldefs are sorted by
+   label name. Every globalref that doesn't have a globaldef with a
+   corresponding label is turned into an import (except that every name is
+   imported only once). */
+static void create_imports()
+{
+    unsigned r, d;  /* current globalref & globaldef*/
+    int diff;
+
+    assert(nimport == 0);
+    d = 0;
+    for (r = 0; r < nglobalref; ++r)
+    {
+        /* Skip duplicate names */
+        if (r > 0 && strcmp(globalrefs[r].label, globalrefs[r - 1].label) == 0)
+            continue;
+
+        /* Find a matching definition */
+        diff = +1;
+        for ( ; d < nglobaldef; ++d)
+        {
+            diff = strcmp(globaldefs[d].label, globalrefs[r].label);
+            if (diff >= 0) break;
+        }
+        if (diff == 0) continue;
+
+        /* Add import: */
+        resize(import, nimport + 1);
+        imports[nimport - 1] = globalrefs[r].label;
+    }
+
+}
+
 static void write_import_table(FILE *fp)
 {
-    write_int(fp, 4);
-    write_int(fp, 0);
-    /* TODO: real implementation! */
+    unsigned total_size = 4, n, str_offset;
+    for (n = 0; n < nimport; ++n)
+        total_size += 4 + strlen(imports[n]) + 1;
+    write_int(fp, roundup(total_size, 4));
+    write_int(fp, nimport);
+    str_offset = 4 + 4*nimport;
+    for (n = 0; n < nimport; ++n)
+    {
+        write_int(fp, str_offset);
+        str_offset += strlen(imports[n]) + 1;
+    }
+    for (n = 0; n < nimport; ++n)
+    {
+        fwrite(imports[n], 1, strlen(imports[n]), fp);
+        fputc(0, fp);
+    }
+    write_padding(fp, total_size, 4);
 }
 
 static void write_export_table(FILE *fp)
@@ -596,7 +646,7 @@ static void write_export_table(FILE *fp)
         total_size += 12 + strlen(exports[n]) + 1;
     write_int(fp, roundup(total_size, 4));
     write_int(fp, nexport);
-    str_offset = 8 + 12*total_size;
+    str_offset = 4 + 12*nexport;
     for (n = 0; n < nexport; ++n)
     {
         /* Find matching section */
@@ -622,9 +672,45 @@ static void write_export_table(FILE *fp)
 
 static void write_xref_table(FILE *fp)
 {
-    write_int(fp, 4);
-    write_int(fp, 0);
-    /* TODO: real implementation! */
+    unsigned r, d, i;  /* current globalref, globaldef and import */
+    write_int(fp, 4 + 16*nglobalref);
+    write_int(fp, nglobalref);
+
+    d = i = 0;
+    for (r = 0; r < nglobalref; ++r)
+    {
+        const struct labelref *ref = &globalrefs[r];
+
+        write_int(fp, ref->section);
+        write_int(fp, ref->offset);
+
+        /* Find a matching definition */
+        for ( ; d < nglobaldef; ++d)
+        {
+            int diff = strcmp(globaldefs[d].label, ref->label);
+            if (diff < 0) continue;
+            if (diff > 0) break;
+            write_int(fp, globaldefs[d].section);
+            write_int(fp, globaldefs[d].offset);
+            goto next;
+        }
+
+        /* No matching definition; find a matching import instead */
+        for ( ; i < nimport; ++i)
+        {
+            int diff = strcmp(imports[i], ref->label);
+            if (diff < 0) continue;
+            if (diff > 0) break;
+            write_int(fp, -1);
+            write_int(fp, i);
+            goto next;
+        }
+
+        /* No matching import found either! This can't happen. */
+        assert(0);
+
+    next: continue;
+    }
 }
 
 static int cmp_exports(const void *a, const void *b)
@@ -636,7 +722,7 @@ static void sort_exports()
 {
     unsigned i, j;
 
-    /* Sort by name: */
+    /* Sort by label name: */
     qsort(exports, nexport, sizeof(char*), cmp_exports);
 
     /* Remove duplicates. */
@@ -657,17 +743,28 @@ static int cmp_globaldef(const void *a, const void *b)
 
 static void sort_globaldefs()
 {
-    unsigned i;
+    unsigned n;
 
-    /* Sort by name: */
+    /* Sort by label name: */
     qsort(globaldefs, nglobaldef, sizeof(struct labeldef), cmp_globaldef);
 
     /* Check for duplicates */
-    for (i = 1; i < nglobaldef; ++i)
+    for (n = 1; n < nglobaldef; ++n)
     {
-        if (strcmp(globaldefs[i].label, globaldefs[i - 1].label) == 0)
-            fatal("label \"%s\" defined more than once", globaldefs[i].label);
+        if (strcmp(globaldefs[n].label, globaldefs[n - 1].label) == 0)
+            fatal("label \"%s\" defined more than once", globaldefs[n].label);
     }
+}
+
+static int cmp_globalref(const void *a, const void *b)
+{
+    return strcmp(((struct labelref*)a)->label, ((struct labelref*)b)->label);
+}
+
+static void sort_globalrefs()
+{
+    /* Sort by label name: */
+    qsort(globalrefs, nglobalref, sizeof(struct labelref), cmp_globalref);
 }
 
 static void write_object_file(FILE *fp)
@@ -703,12 +800,15 @@ int main(int argc, char *argv[])
         if (yyin == NULL) fatal("couldn't open \"%s\" for reading", argv[1]);
     }
 
-    /* Process input */
+    /* Parse input */
     (void)yyparse();
     if (npiece != 0) end_section();
 
+    /* Process parsed data */
     sort_exports();
     sort_globaldefs();
+    sort_globalrefs();
+    create_imports();
 
     /* Write output */
     if (argc < 2)
