@@ -8,7 +8,7 @@ Header
     4   reserved (0)
 
 Code table
-    4   total table size (S; multiple of 4)
+    4   remaining table size (S; multiple of 4)
     4   number of sections (N)
     For each section:
         4   section type (0:code, 1:data, 2:vcode, 3:vdata, 4:bss)
@@ -18,7 +18,7 @@ Code table
     End of section entry
 
 Import table
-    4   total table size (S; multiple of 4)
+    4   remaining table size (S; multiple of 4)
     4   number of entries (N)
     For each entry:
     4   name (offset relative to start of import table)
@@ -26,7 +26,7 @@ Import table
  S-8-4N string data (ends with a zero)
 
 Export table
-    4   total table size (S; multiple of 4)
+    4   remaining table size (S; multiple of 4)
     4   number of entries (N)
     For each entry:
     4   name (offset relative to start of export table)
@@ -36,7 +36,7 @@ Export table
 S-8-12N string data (ends with a zero)
 
 Cross-references
-    4   total table size
+    4   remaining table size (S; multiple of 4)
     4   number of entries (N)
     For each entry:
     4   patched section

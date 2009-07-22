@@ -1,4 +1,4 @@
-CFLAGS=-Wall -g -O2 -ansi
+CFLAGS=-Wall -g -O2
 ASOBJS=parser.tab.o lex.yy.o operations.o glulxas.o
 LDOBJS=glulxld.o
 

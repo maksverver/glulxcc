@@ -253,16 +253,6 @@ void def_label(const char *label)
     defs[ndef - 1].piece = npiece;
 }
 
-void encode_lit(const struct literal *lit, unsigned size, char *data)
-{
-    if (lit->label != NULL)
-    {
-        printf("import %s\n", lit->label);
-        /* TODO: add label ref */
-    }
-    encode_int(lit->adjust, size, data);
-}
-
 /* Allocates the binary data representation of a piece. */
 void set_piece_data(struct piece *p)
 {
@@ -278,7 +268,59 @@ void set_piece_data(struct piece *p)
         encode_opcode(p->i->o->opcode, pos);
         pos += opcode_size(p->i->o->opcode);
 
-        /* TODO: encode operand types, two per byte */
+        /* Encode operand types */
+        memset(pos, 0, (nparam + 1)/2);
+        for (n = 0; n < nparam; ++n)
+        {
+            const struct operand *oper = &p->i->opers[n];
+            int type = -1;
+            switch (oper->type)
+            {
+            case OPER_CONST:
+                switch (oper->size)
+                {
+                case 0: type = 0x00;
+                case 1: type = 0x01;
+                case 2: type = 0x02;
+                case 4: type = 0x03;
+                }
+                break;
+
+                /* 0x04 unused */
+
+            case OPER_ROMREF:
+                switch (oper->size)
+                {
+                case 1: type = 0x05;
+                case 2: type = 0x06;
+                case 4: type = 0x07;
+                }
+                break;
+
+            case OPER_STACK:
+                type = 0x08;
+                break;
+
+            case OPER_LOCAL:
+                switch (oper->size)
+                {
+                case 1: type = 0x09;
+                case 2: type = 0x0A;
+                case 4: type = 0x0B;
+                }
+                break;
+
+                /* 0x0C unused */
+
+            case OPER_RAMREF:
+                 /* not supported right now, because we need an adjustment equal
+                    to ramstart which is not fixed! */
+                assert(0);
+                break;
+            }
+            assert(type != -1);
+            pos[n/2] |= type << (n%2 ? 4 : 0);
+        }
         pos += (nparam + 1)/2;
 
         for (n = 0; n < nparam; ++n)
@@ -305,9 +347,7 @@ void set_piece_data(struct piece *p)
                     break;
 
                 case OPER_RAMREF:
-                    assert(0);  /* not supported right now, because we need an
-                                   adjustment equal to ramstart which is not
-                                   fixed! */
+                    assert(0);
                     break;
 
                 default:
@@ -521,7 +561,7 @@ static void write_padding(FILE *fp, unsigned n, unsigned align)
 
 static void write_code_table(FILE *fp)
 {
-    unsigned total_size = 8, n;
+    unsigned total_size = 4, n;
     for (n = 0; n < nsection; ++n)
     {
         total_size += 8;
@@ -551,7 +591,7 @@ static void write_import_table(FILE *fp)
 
 static void write_export_table(FILE *fp)
 {
-    unsigned total_size = 8, n, str_offset, def = 0;
+    unsigned total_size = 4, n, str_offset, def = 0;
     for (n = 0; n < nexport; ++n)
         total_size += 12 + strlen(exports[n]) + 1;
     write_int(fp, roundup(total_size, 4));
