@@ -56,14 +56,18 @@ RCCOBJS=$Balloc$O \
 	$Bnull$O \
 	$Bsymbolic$O \
 	$Bgen$O \
-	$Bbytecode$O \
-	$Balpha$O \
-	$Bmips$O \
-	$Bsparc$O \
 	$Bstab$O \
-	$Bx86$O \
-	$Bx86linux$O \
 	$Bglulx$O
+
+# Removed:
+#	$Bbytecode$O \
+#	$Balpha$O \
+#	$Bmips$O \
+#	$Bsparc$O \
+#	$Bx86$O \
+#	$Bx86linux$O \
+
+
 
 $Brcc$E::	$Bmain$O $Blibrcc$A $(EXTRAOBJS)
 		$(LD) $(LDFLAGS) -o $@ $Bmain$O $(EXTRAOBJS) $Blibrcc$A $(EXTRALIBS)
