@@ -7,6 +7,8 @@ define(`fst', `substr(`$1', 0, 1)')dnl
 define(`lst', `substr(`$1', eval(len(`$1') - 1))')dnl
 define(`narg', `eval(fst(`$1') - ifelse(lst(`$1'), `:', 0, 1))')dnl
 define(`stub', `dnl
+section code
+export func@glk_`$2'
 :func@glk_`$2'
 	dc.b 0xc1 4 1 0 0
 copyargs(narg(`$3'))dnl
@@ -14,7 +16,7 @@ copyargs(narg(`$3'))dnl
 	return (sp)
 ')dnl
 define(`copyargs', `ifelse(`$1', `0', `', `dnl
-	aload {0}.l -`$1' (sp)
+	aload {0} -`$1' (sp)
 copyargs(eval(`$1'-1))')')dnl
 changecom(`;')dnl
 dnl

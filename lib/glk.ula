@@ -4,444 +4,574 @@
 ; Main GLK functions
 ;
 
+section code
+export func@glk_exit
 :func@glk_exit
 	dc.b 0xc1 4 1 0 0
 	glk 0x0001 0 (sp)
 	return (sp)
 
+section code
+export func@glk_tick
 :func@glk_tick
 	dc.b 0xc1 4 1 0 0
 	glk 0x0003 0 (sp)
 	return (sp)
 
+section code
+export func@glk_gestalt
 :func@glk_gestalt
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0004 2 (sp)
 	return (sp)
 
+section code
+export func@glk_gestalt_ext
 :func@glk_gestalt_ext
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0005 3 (sp)
 	return (sp)
 
+section code
+export func@glk_window_iterate
 :func@glk_window_iterate
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0020 2 (sp)
 	return (sp)
 
+section code
+export func@glk_window_get_rock
 :func@glk_window_get_rock
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0021 1 (sp)
 	return (sp)
 
+section code
+export func@glk_window_get_root
 :func@glk_window_get_root
 	dc.b 0xc1 4 1 0 0
 	glk 0x0022 0 (sp)
 	return (sp)
 
+section code
+export func@glk_window_open
 :func@glk_window_open
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -5 (sp)
-	aload {0}.l -4 (sp)
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -5 (sp)
+	aload {0} -4 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0023 5 (sp)
 	return (sp)
 
+section code
+export func@glk_window_close
 :func@glk_window_close
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0024 2 (sp)
 	return (sp)
 
+section code
+export func@glk_window_get_size
 :func@glk_window_get_size
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0025 3 (sp)
 	return (sp)
 
+section code
+export func@glk_window_set_arrangement
 :func@glk_window_set_arrangement
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -4 (sp)
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -4 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0026 4 (sp)
 	return (sp)
 
+section code
+export func@glk_window_get_arrangement
 :func@glk_window_get_arrangement
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -4 (sp)
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -4 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0027 4 (sp)
 	return (sp)
 
+section code
+export func@glk_window_get_type
 :func@glk_window_get_type
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0028 1 (sp)
 	return (sp)
 
+section code
+export func@glk_window_get_parent
 :func@glk_window_get_parent
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0029 1 (sp)
 	return (sp)
 
+section code
+export func@glk_window_clear
 :func@glk_window_clear
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x002A 1 (sp)
 	return (sp)
 
+section code
+export func@glk_window_move_cursor
 :func@glk_window_move_cursor
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x002B 3 (sp)
 	return (sp)
 
+section code
+export func@glk_window_get_stream
 :func@glk_window_get_stream
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x002C 1 (sp)
 	return (sp)
 
+section code
+export func@glk_window_set_echo_stream
 :func@glk_window_set_echo_stream
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x002D 2 (sp)
 	return (sp)
 
+section code
+export func@glk_window_get_echo_stream
 :func@glk_window_get_echo_stream
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x002E 1 (sp)
 	return (sp)
 
+section code
+export func@glk_set_window
 :func@glk_set_window
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x002F 1 (sp)
 	return (sp)
 
+section code
+export func@glk_window_get_sibling
 :func@glk_window_get_sibling
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0030 1 (sp)
 	return (sp)
 
+section code
+export func@glk_stream_iterate
 :func@glk_stream_iterate
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0040 2 (sp)
 	return (sp)
 
+section code
+export func@glk_stream_get_rock
 :func@glk_stream_get_rock
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0041 1 (sp)
 	return (sp)
 
+section code
+export func@glk_stream_open_file
 :func@glk_stream_open_file
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0042 3 (sp)
 	return (sp)
 
+section code
+export func@glk_stream_open_memory
 :func@glk_stream_open_memory
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0043 3 (sp)
 	return (sp)
 
+section code
+export func@glk_stream_close
 :func@glk_stream_close
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0044 2 (sp)
 	return (sp)
 
+section code
+export func@glk_stream_set_position
 :func@glk_stream_set_position
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0045 3 (sp)
 	return (sp)
 
+section code
+export func@glk_stream_get_position
 :func@glk_stream_get_position
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0046 1 (sp)
 	return (sp)
 
+section code
+export func@glk_stream_set_current
 :func@glk_stream_set_current
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0047 1 (sp)
 	return (sp)
 
+section code
+export func@glk_stream_get_current
 :func@glk_stream_get_current
 	dc.b 0xc1 4 1 0 0
 	glk 0x0048 0 (sp)
 	return (sp)
 
+section code
+export func@glk_fileref_create_temp
 :func@glk_fileref_create_temp
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0060 2 (sp)
 	return (sp)
 
+section code
+export func@glk_fileref_create_by_name
 :func@glk_fileref_create_by_name
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0061 3 (sp)
 	return (sp)
 
+section code
+export func@glk_fileref_create_by_prompt
 :func@glk_fileref_create_by_prompt
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0062 3 (sp)
 	return (sp)
 
+section code
+export func@glk_fileref_destroy
 :func@glk_fileref_destroy
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0063 1 (sp)
 	return (sp)
 
+section code
+export func@glk_fileref_iterate
 :func@glk_fileref_iterate
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0064 2 (sp)
 	return (sp)
 
+section code
+export func@glk_fileref_get_rock
 :func@glk_fileref_get_rock
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0065 1 (sp)
 	return (sp)
 
+section code
+export func@glk_fileref_delete_file
 :func@glk_fileref_delete_file
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0066 1 (sp)
 	return (sp)
 
+section code
+export func@glk_fileref_does_file_exist
 :func@glk_fileref_does_file_exist
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0067 1 (sp)
 	return (sp)
 
+section code
+export func@glk_fileref_create_from_fileref
 :func@glk_fileref_create_from_fileref
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0068 3 (sp)
 	return (sp)
 
+section code
+export func@glk_put_char
 :func@glk_put_char
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0080 1 (sp)
 	return (sp)
 
+section code
+export func@glk_put_char_stream
 :func@glk_put_char_stream
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0081 2 (sp)
 	return (sp)
 
+section code
+export func@glk_put_string
 :func@glk_put_string
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0082 1 (sp)
 	return (sp)
 
+section code
+export func@glk_put_string_stream
 :func@glk_put_string_stream
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0083 2 (sp)
 	return (sp)
 
+section code
+export func@glk_put_buffer
 :func@glk_put_buffer
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0084 1 (sp)
 	return (sp)
 
+section code
+export func@glk_put_buffer_stream
 :func@glk_put_buffer_stream
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0085 2 (sp)
 	return (sp)
 
+section code
+export func@glk_set_style
 :func@glk_set_style
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0086 1 (sp)
 	return (sp)
 
+section code
+export func@glk_set_style_stream
 :func@glk_set_style_stream
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0087 2 (sp)
 	return (sp)
 
+section code
+export func@glk_get_char_stream
 :func@glk_get_char_stream
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0090 1 (sp)
 	return (sp)
 
+section code
+export func@glk_get_line_stream
 :func@glk_get_line_stream
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0091 2 (sp)
 	return (sp)
 
+section code
+export func@glk_get_buffer_stream
 :func@glk_get_buffer_stream
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0092 2 (sp)
 	return (sp)
 
+section code
+export func@glk_char_to_lower
 :func@glk_char_to_lower
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00A0 1 (sp)
 	return (sp)
 
+section code
+export func@glk_char_to_upper
 :func@glk_char_to_upper
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00A1 1 (sp)
 	return (sp)
 
+section code
+export func@glk_stylehint_set
 :func@glk_stylehint_set
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -4 (sp)
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -4 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00B0 4 (sp)
 	return (sp)
 
+section code
+export func@glk_stylehint_clear
 :func@glk_stylehint_clear
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00B1 3 (sp)
 	return (sp)
 
+section code
+export func@glk_style_distinguish
 :func@glk_style_distinguish
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00B2 3 (sp)
 	return (sp)
 
+section code
+export func@glk_style_measure
 :func@glk_style_measure
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -4 (sp)
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -4 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00B3 4 (sp)
 	return (sp)
 
+section code
+export func@glk_select
 :func@glk_select
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00C0 1 (sp)
 	return (sp)
 
+section code
+export func@glk_select_poll
 :func@glk_select_poll
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00C1 1 (sp)
 	return (sp)
 
+section code
+export func@glk_request_line_event
 :func@glk_request_line_event
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00D0 3 (sp)
 	return (sp)
 
+section code
+export func@glk_cancel_line_event
 :func@glk_cancel_line_event
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00D1 2 (sp)
 	return (sp)
 
+section code
+export func@glk_request_char_event
 :func@glk_request_char_event
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00D2 1 (sp)
 	return (sp)
 
+section code
+export func@glk_cancel_char_event
 :func@glk_cancel_char_event
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00D3 1 (sp)
 	return (sp)
 
+section code
+export func@glk_request_mouse_event
 :func@glk_request_mouse_event
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00D4 1 (sp)
 	return (sp)
 
+section code
+export func@glk_cancel_mouse_event
 :func@glk_cancel_mouse_event
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00D5 1 (sp)
 	return (sp)
 
+section code
+export func@glk_request_timer_events
 :func@glk_request_timer_events
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00D6 1 (sp)
 	return (sp)
 
@@ -450,65 +580,79 @@
 ; GLK Image module
 ;
 
+section code
+export func@glk_image_get_info
 :func@glk_image_get_info
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00E0 3 (sp)
 	return (sp)
 
+section code
+export func@glk_image_draw
 :func@glk_image_draw
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -4 (sp)
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -4 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00E1 4 (sp)
 	return (sp)
 
+section code
+export func@glk_image_draw_scaled
 :func@glk_image_draw_scaled
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -6 (sp)
-	aload {0}.l -5 (sp)
-	aload {0}.l -4 (sp)
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -6 (sp)
+	aload {0} -5 (sp)
+	aload {0} -4 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00E2 6 (sp)
 	return (sp)
 
+section code
+export func@glk_window_flow_break
 :func@glk_window_flow_break
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00E8 1 (sp)
 	return (sp)
 
+section code
+export func@glk_window_erase_rect
 :func@glk_window_erase_rect
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -5 (sp)
-	aload {0}.l -4 (sp)
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -5 (sp)
+	aload {0} -4 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00E9 5 (sp)
 	return (sp)
 
+section code
+export func@glk_window_fill_rect
 :func@glk_window_fill_rect
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -6 (sp)
-	aload {0}.l -5 (sp)
-	aload {0}.l -4 (sp)
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -6 (sp)
+	aload {0} -5 (sp)
+	aload {0} -4 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00EA 6 (sp)
 	return (sp)
 
+section code
+export func@glk_window_set_background_color
 :func@glk_window_set_background_color
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00EB 2 (sp)
 	return (sp)
 
@@ -517,64 +661,82 @@
 ; GLK Sound module
 ;
 
+section code
+export func@glk_schannel_iterate
 :func@glk_schannel_iterate
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00F0 2 (sp)
 	return (sp)
 
+section code
+export func@glk_schannel_get_rock
 :func@glk_schannel_get_rock
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00F1 1 (sp)
 	return (sp)
 
+section code
+export func@glk_schannel_create
 :func@glk_schannel_create
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00F2 1 (sp)
 	return (sp)
 
+section code
+export func@glk_schannel_destroy
 :func@glk_schannel_destroy
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00F3 1 (sp)
 	return (sp)
 
+section code
+export func@glk_schannel_play
 :func@glk_schannel_play
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00F8 2 (sp)
 	return (sp)
 
+section code
+export func@glk_schannel_play_ext
 :func@glk_schannel_play_ext
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -4 (sp)
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -4 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00F9 4 (sp)
 	return (sp)
 
+section code
+export func@glk_schannel_stop
 :func@glk_schannel_stop
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x00FA 1 (sp)
 	return (sp)
 
+section code
+export func@glk_schannel_set_volume
 :func@glk_schannel_set_volume
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00FB 2 (sp)
 	return (sp)
 
+section code
+export func@glk_sound_load_hint
 :func@glk_sound_load_hint
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x00FC 2 (sp)
 	return (sp)
 
@@ -583,28 +745,36 @@
 ; GLK Hyperlinks module
 ;
 
+section code
+export func@glk_set_hyperlink
 :func@glk_set_hyperlink
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0100 1 (sp)
 	return (sp)
 
+section code
+export func@glk_set_hyperlink_stream
 :func@glk_set_hyperlink_stream
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0101 2 (sp)
 	return (sp)
 
+section code
+export func@glk_request_hyperlink_event
 :func@glk_request_hyperlink_event
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0102 1 (sp)
 	return (sp)
 
+section code
+export func@glk_cancel_hyperlink_event
 :func@glk_cancel_hyperlink_event
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0103 1 (sp)
 	return (sp)
 
@@ -613,114 +783,146 @@
 ; GLK Unicode module
 ;
 
+section code
+export func@glk_buffer_to_lower_case_uni
 :func@glk_buffer_to_lower_case_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0120 2 (sp)
 	return (sp)
 
+section code
+export func@glk_buffer_to_upper_case_uni
 :func@glk_buffer_to_upper_case_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0121 2 (sp)
 	return (sp)
 
+section code
+export func@glk_buffer_to_title_case_uni
 :func@glk_buffer_to_title_case_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0122 3 (sp)
 	return (sp)
 
+section code
+export func@glk_put_char_uni
 :func@glk_put_char_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0128 1 (sp)
 	return (sp)
 
+section code
+export func@glk_put_string_uni
 :func@glk_put_string_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0129 1 (sp)
 	return (sp)
 
+section code
+export func@glk_put_buffer_uni
 :func@glk_put_buffer_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x012A 1 (sp)
 	return (sp)
 
+section code
+export func@glk_put_char_stream_uni
 :func@glk_put_char_stream_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x012B 2 (sp)
 	return (sp)
 
+section code
+export func@glk_put_string_stream_uni
 :func@glk_put_string_stream_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x012C 2 (sp)
 	return (sp)
 
+section code
+export func@glk_put_buffer_stream_uni
 :func@glk_put_buffer_stream_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x012D 2 (sp)
 	return (sp)
 
+section code
+export func@glk_get_char_stream_uni
 :func@glk_get_char_stream_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0130 1 (sp)
 	return (sp)
 
+section code
+export func@glk_get_buffer_stream_uni
 :func@glk_get_buffer_stream_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0131 2 (sp)
 	return (sp)
 
+section code
+export func@glk_get_line_stream_uni
 :func@glk_get_line_stream_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0132 2 (sp)
 	return (sp)
 
+section code
+export func@glk_stream_open_file_uni
 :func@glk_stream_open_file_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0138 3 (sp)
 	return (sp)
 
+section code
+export func@glk_stream_open_memory_uni
 :func@glk_stream_open_memory_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0139 3 (sp)
 	return (sp)
 
+section code
+export func@glk_request_char_event_uni
 :func@glk_request_char_event_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -1 (sp)
+	aload {0} -1 (sp)
 	glk 0x0140 1 (sp)
 	return (sp)
 
+section code
+export func@glk_request_line_event_uni
 :func@glk_request_line_event_uni
 	dc.b 0xc1 4 1 0 0
-	aload {0}.l -3 (sp)
-	aload {0}.l -2 (sp)
-	aload {0}.l -1 (sp)
+	aload {0} -3 (sp)
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
 	glk 0x0141 3 (sp)
 	return (sp)
 
