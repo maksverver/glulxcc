@@ -564,7 +564,7 @@ static void write_code_table(FILE *fp)
     uint total_size = 4, n;
     for (n = 0; n < nsection; ++n)
     {
-        total_size += 8;
+        total_size += 12;
         if (sections[n].type != SECTION_BSS)
             total_size += roundup(sections[n].size, 4);
     }
@@ -574,6 +574,7 @@ static void write_code_table(FILE *fp)
     {
         write_int(fp, sections[n].type);
         write_int(fp, sections[n].size);
+        write_int(fp, 0);
         if (sections[n].type != SECTION_BSS)
         {
             fwrite(sections[n].data, 1, sections[n].size, fp);

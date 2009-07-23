@@ -18,6 +18,7 @@ struct section
     /* read from the object file: */
     enum secttype type;
     size_t size;
+    uint align;
     char *data;
 
     /* assigned by the linker: */
@@ -162,9 +163,10 @@ static bool parse_code_table(char *data, size_t size)
     resize(section, nsection + nsect);
     for (n = start_section; n < nsection; ++n)
     {
-        sections[n].type = get_int(data + 0);
-        sections[n].size = get_int(data + 4);
-        data += 8;
+        sections[n].type  = get_int(data + 0);
+        sections[n].size  = get_int(data + 4);
+        sections[n].align = get_int(data + 8)&0xffff;
+        data += 12;
         if (sections[n].type == SECTION_BSS)
         {
             sections[n].data = NULL;
@@ -193,28 +195,31 @@ static bool parse_import_table(char *data, size_t size)
 /* FIXME: this function does not check for buffer overflows */
 static bool parse_export_table(char *data, size_t size)
 {
+    char *entry;
     uint nexp = get_int(data), n;
     resize(export, nexport + nexp);
+    entry = data + 4;
     for (n = nexport - nexp; n < nexport; ++n)
     {
-        char *entry = data + 4 + 12*n;
         exports[n].name    = get_int(entry + 0) + data;
         exports[n].section = get_int(entry + 4) + start_section;
         exports[n].offset  = get_int(entry + 8);
         assert(exports[n].section < nsection);
-        assert(exports[n].offset <= sections[n].size);
+        assert(exports[n].offset <= sections[exports[n].section].size);
+        entry += 12;
     }
     return true;
 }
 
 static bool parse_cross_references(char *data, size_t size)
 {
+    char *entry;
     uint nxr = get_int(data), n;
 
     resize(xref, nxref + nxr);
+    entry = data + 4;
     for (n = nxref - nxr; n < nxref; ++n)
     {
-        char *entry = data + 4 + 16*n;
         xrefs[n].patch_section = get_int(entry +  0) + start_section;
         xrefs[n].patch_offset  = get_int(entry +  4);
         xrefs[n].section       = get_int(entry +  8);
@@ -231,6 +236,7 @@ static bool parse_cross_references(char *data, size_t size)
             xrefs[n].name   = imports[xrefs[n].offset];
             xrefs[n].offset = 0;
         }
+        entry += 16;
     }
     return true;
 }
@@ -482,14 +488,8 @@ static void assign_addresses()
             extstart = address = roundup(address, 256);
         }
 
-        switch (used[n]->size)
-        {
-        case  0: break;
-        case  1: break;
-        case  2: address = roundup(address, 2); break;  /* short align */
-        case  3: break;
-        default: address = roundup(address, 4); break;  /* long align */
-        }
+        if (used[n]->align > 1)
+            address = roundup(address, used[n]->align);
 
         used[n]->address = address;
         address += used[n]->size;

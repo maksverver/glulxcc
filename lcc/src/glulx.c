@@ -1,6 +1,9 @@
+/* Glulx backend by Maks Verver <maksverver@geocities.com> July 2009 */
+
 #include "c.h"
 #define X(f) glulx_##f
 
+static int cur_seg;
 static Symbol cur_func;
 
 /* Used when emiting a function (and reset for each function): */
@@ -100,15 +103,21 @@ static void X(address)(Symbol p, Symbol q, long n)
     p->name = (n == 0) ? string(q->name) : stringf("%s:%D", q->name, n);
 }
 
-static void X(segment)(int seg)
+static void print_section()
 {
-    switch (seg)
+    switch (cur_seg)
     {
     case CODE: print("section code\n");  break;
     case LIT:  print("section data\n");  break;
     case DATA: print("section vdata\n"); break;
     case BSS:  print("section bss\n");   break;
     }
+}
+
+static void X(segment)(int seg)
+{
+    cur_seg = seg;
+    if (seg != CODE) print_section();
 }
 
 static void X(function)(Symbol f, Symbol caller[], Symbol callee[], int ncalls)
@@ -137,6 +146,7 @@ static void X(function)(Symbol f, Symbol caller[], Symbol callee[], int ncalls)
     gencode(caller, callee);
 
     /* Emit prologue */
+    print_section();
     print("\t:%s\n", f->name);
     print("\t\tdc.b 0xc1 4 2 0 0\n");
     print("\t\tadd {0} %d {4}\n", locals_size + staging_size);

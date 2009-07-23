@@ -1,6 +1,7 @@
 gnuas:
   - more extensive testing
   - RAM-relative addressing?
+  - allow user to specify section alignment, e.g.: section code 123
 
 gnuld:
   - more extensive testing

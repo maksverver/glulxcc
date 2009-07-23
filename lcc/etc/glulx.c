@@ -1,4 +1,4 @@
-/* any platform with Glulx back-end */
+/* Glulx back-end by Maks Verver <maksverver@geocities.com> July 2009 */
 
 #include <string.h>
 

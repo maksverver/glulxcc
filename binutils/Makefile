@@ -1,6 +1,6 @@
 #CC=gcc
 CFLAGS=-Wall -g -O2 -I.
-LDFLAGS=
+LDFLAGS=-g
 BUILDDIR=../build
 
 B=$(BUILDDIR)/
@@ -13,10 +13,11 @@ OUTPUT=$Bglulxas $Bglulxld
 all: $(OUTPUT)
 
 glulxas: $Bglulxas
-	true
+	@true
 
 glulxld: $Bglulxld
-	true
+	@true
+
 $Bparser.tab.c: parser.y
 	yacc -o "$@" -d "$<"
 

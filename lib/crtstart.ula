@@ -1,40 +1,41 @@
-	stack 4096
-	ext 61440   ; used for call stack
+	stack 4096  ;  4 KB
+
+export _start
+
+section bss
+:stack	dc.l 15360  ; 60 KB
 
 section vdata
-:argv0
-	dc.b 109 97 105 110 0  ; "main"
-:argv
-	dc.l :argv0
-	dc.l 0
+:argv0	dc.b 109 97 105 110 0  ; "main"
+:argv	dc.l :argv0 0
 
 section code
 :_start
-	dc.b 0xc0 4 2 0 0  
+	dc.b 0xc1 4 2 0 0  
 
 	; Initialize stack
-	copy (12).l {0}.l	; bp <- extstart
-	add  {0}.l 8 {4}.l	; sp <- bp + 8
+	copy :stack {0}
+	add  {0} 8 {4}
 
 	; Open initial Glk (text) window and make it current
-	astore {4}.l -1 0
-	astore {4}.l -2 0
-	astore {4}.l -3 0
-	astore {4}.l -4 3
-	astore {4}.l -5 0
-	callfi :glk_window_open {4}.l (sp)
+	astore {4} -1 0
+	astore {4} -2 0
+	astore {4} -3 0
+	astore {4} -4 3
+	astore {4} -5 0
+	callfi :glk_window_open {4} (sp)
 	stkcopy 1  ; keep copy of window id on the stack
-	astore {4}.l -1 (sp)
-	callfi :glk_set_window {4}.l ~
+	astore {4} -1 (sp)
+	callfi :glk_set_window {4} ~
 
 	; Call real main function
-	astore {4}.l -1 1
-	astore {4}.l -2 :argv.l
-	callfi :main {4}.l ~
+	astore {4} -1 1
+	astore {4} -2 :argv
+	callfi :main {4} ~
 
 	; Close Glk window
-	astore {4}.l -1 (sp)
-	astore {4}.l -2 0
-	callfi :glk_window_close {4}.l ~
+	astore {4} -1 (sp)
+	astore {4} -2 0
+	callfi :glk_window_close {4} ~
 
 	quit
