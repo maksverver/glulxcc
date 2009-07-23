@@ -2,8 +2,10 @@
 
 #include <string.h>
 
-#ifndef LCCDIR
-#define LCCDIR "/usr/local/lib/glulxcc/"
+#ifndef PREFIX
+#error "PREFIX not set"
+#else
+#define LCCDIR PREFIX "/lib/glulxcc/"
 #endif
 
 char *suffixes[] = {

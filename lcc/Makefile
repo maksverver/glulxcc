@@ -131,7 +131,7 @@ $Bops$O:	etc/ops.c src/ops.h;		$(CC) $(CFLAGS) -c -Isrc -o $@ etc/ops.c
 $Blcc$E:	$Blcc$O $Bhost$O;	$(LD) $(LDFLAGS) -o $@ $Blcc$O $Bhost$O 
 
 $Blcc$O:	etc/lcc.c;		$(CC) $(CFLAGS) -c -o $@ etc/lcc.c
-$Bhost$O:	$(HOSTFILE);	$(CC) $(CFLAGS) -c -o $@ $(HOSTFILE)
+$Bhost$O:	$(HOSTFILE);	$(CC) $(CFLAGS) -DPREFIX='"$(PREFIX)"' -c -o $@ $(HOSTFILE)
 
 LIBOBJS=$Bassert$O $Bbbexit$O $Byynull$O
 

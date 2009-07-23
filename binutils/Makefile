@@ -1,25 +1,42 @@
-CFLAGS=-Wall -g -O2
-ASOBJS=parser.tab.o lex.yy.o operations.o glulxas.o
-LDOBJS=glulxld.o
+#CC=gcc
+CFLAGS=-Wall -g -O2 -I.
+LDFLAGS=
+BUILDDIR=../build
 
-all: glulxas glulxld
+B=$(BUILDDIR)/
+O=.o
 
-parser.tab.c: parser.y
-	yacc -d parser.y
+ASOBJS=$Bparser.tab$O $Bscanner.yy$O $Boperations$O $Bglulxas$O
+LDOBJS=$Bglulxld$O
+OUTPUT=$Bglulxas $Bglulxld
 
-lex.yy.c: scanner.l
-	lex scanner.l
+all: $(OUTPUT)
 
-glulxas: $(ASOBJS)
-	$(CC) -o glulxas $(ASOBJS)
+glulxas: $Bglulxas
+	true
 
-glulxld: $(LDOBJS)
-	$(CC) -o glulxld $(LDOBJS)
+glulxld: $Bglulxld
+	true
+$Bparser.tab.c: parser.y
+	yacc -o "$@" -d "$<"
+
+$Bscanner.yy.c: scanner.l
+	lex -o "$@" "$<"
+
+$Bglulxas$O: glulxas.c;		$(CC) $(CFLAGS) -c -o "$@" "$<"
+$Bglulxld$O: glulxld.c;		$(CC) $(CFLAGS) -c -o "$@" "$<"
+$Boperations$O: operations.c;	$(CC) $(CFLAGS) -c -o "$@" "$<"
+
+$Bglulxas: $(ASOBJS)
+	$(CC) $(LDFLAGS) -o $Bglulxas $(ASOBJS)
+
+$Bglulxld: $(LDOBJS)
+	$(CC) $(LDFLAGS) -o $Bglulxld $(LDOBJS)
 
 clean:
-	rm -f $(ASOBJS) $(LDOBJS) parser.tab.c lex.yy.c
+	rm -f $(ASOBJS) $(LDOBJS) $Bparser.tab.c $Bparser.tab.h $Bscanner.yy.c
 
 distclean: clean
-	rm -f glulxas glulxld
+	rm -f $(OUTPUT)
 
 .PHONY: all clean distclean

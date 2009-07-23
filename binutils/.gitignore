@@ -1,6 +1,0 @@
-*.o
-*.a
-glulxas
-glulxld
-lex.yy.c
-parser.tab.c
