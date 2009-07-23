@@ -33,9 +33,4 @@ section code
 	astore {4} -2 :argv
 	callfi :main {4} ~
 
-	; Close Glk window
-	astore {4} -1 (sp)
-	astore {4} -2 0
-	callfi :glk_window_close {4} ~
-
 	quit

@@ -2,8 +2,8 @@
 A=.a
 O=.o
 E=
-CC=cc
-CFLAGS=-g
+CC=gcc
+CFLAGS=-g -O2
 LDFLAGS=-g
 LD=$(CC)
 AR=ar ruv

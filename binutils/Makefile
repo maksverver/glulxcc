@@ -1,4 +1,6 @@
-#CC=gcc
+CC=gcc
+LEX=flex
+YACC=bison
 CFLAGS=-Wall -g -O2 -I.
 LDFLAGS=-g
 BUILDDIR=../build
@@ -12,27 +14,18 @@ OUTPUT=$Bglulxas $Bglulxld
 
 all: $(OUTPUT)
 
-glulxas: $Bglulxas
-	@true
+glulxas: $Bglulxas;	@true
+glulxld: $Bglulxld;	@true
 
-glulxld: $Bglulxld
-	@true
+$Bparser.tab.c: parser.y;	$(YACC) -o"$@" -d "$<"
+$Bscanner.yy.c: scanner.l;	$(LEX) -o"$@" "$<"
 
-$Bparser.tab.c: parser.y
-	yacc -o "$@" -d "$<"
+$Bglulxas$O: glulxas.c;		$(CC) $(CFLAGS) -c -o"$@" "$<"
+$Bglulxld$O: glulxld.c;		$(CC) $(CFLAGS) -c -o"$@" "$<"
+$Boperations$O: operations.c;	$(CC) $(CFLAGS) -c -o"$@" "$<"
 
-$Bscanner.yy.c: scanner.l
-	lex -o "$@" "$<"
-
-$Bglulxas$O: glulxas.c;		$(CC) $(CFLAGS) -c -o "$@" "$<"
-$Bglulxld$O: glulxld.c;		$(CC) $(CFLAGS) -c -o "$@" "$<"
-$Boperations$O: operations.c;	$(CC) $(CFLAGS) -c -o "$@" "$<"
-
-$Bglulxas: $(ASOBJS)
-	$(CC) $(LDFLAGS) -o $Bglulxas $(ASOBJS)
-
-$Bglulxld: $(LDOBJS)
-	$(CC) $(LDFLAGS) -o $Bglulxld $(LDOBJS)
+$Bglulxas: $(ASOBJS);	$(CC) $(LDFLAGS) -o$Bglulxas $(ASOBJS)
+$Bglulxld: $(LDOBJS);	$(CC) $(LDFLAGS) -o$Bglulxld $(LDOBJS)
 
 clean:
 	rm -f $(ASOBJS) $(LDOBJS) $Bparser.tab.c $Bparser.tab.h $Bscanner.yy.c
