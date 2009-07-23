@@ -37,9 +37,9 @@ Usage:
 
 Notes:
 
-The exported symbol "main" determines the application entry point. If it is not
-defined, the start of the first code section is used instead, or the start of
-the first vcode section if no code sections exist.
+The exported symbol "start_" determines the application entry point, or if it is
+not defined, "main". If neither is defined, the start of the fist code section
+is used.
 
 The exported symbol "decodingtbl" determines the value for the initial decoding
 table. If it is not defined, not initial decoding table is set.

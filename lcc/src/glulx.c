@@ -1,11 +1,6 @@
 #include "c.h"
 #define X(f) glulx_##f
 
-#define FUNC_PREFIX  ":func@"
-#define LABEL_PREFIX ":label@"
-#define VAR_PREFIX   ":var@"
-
-static int cur_seg = 0;
 static Symbol cur_func;
 
 /* Used when emiting a function (and reset for each function): */
@@ -22,7 +17,7 @@ static void X(blockend)(Env *e) { (void)e;  /* unused */ }
 static void X(defaddress)(Symbol p)
 {
     assert(p->scope == GLOBAL);
-    print("\t\tdc.l %s%s\n", isfunc(p->type) ? FUNC_PREFIX : VAR_PREFIX, p->name);
+    print("\t\tdc.l :%s\n", p->name);
 }
 
 static void X(defconst)(int suffix, int size, Value v)
@@ -81,12 +76,16 @@ static void X(space)(int n)
 
 /* No implementation necessary: */
 static void X(defsymbol)(Symbol p) { (void)p;  /* unused */ }
-static void X(export)(Symbol p)    { (void)p;  /* unused */ }
 static void X(import)(Symbol p)    { (void)p;  /* unused */ }
+
+static void X(export)(Symbol p)
+{
+    print("\texport %s\n", p->name);
+}
 
 static void X(global)(Symbol p)
 {
-    print("\t%s%s\n", VAR_PREFIX, p->name);
+    print("\t:%s\n", p->name);
 }
 
 static void X(local)(Symbol p)
@@ -103,16 +102,12 @@ static void X(address)(Symbol p, Symbol q, long n)
 
 static void X(segment)(int seg)
 {
-    if (seg != cur_seg)
+    switch (seg)
     {
-        switch (seg)
-        {
-        case CODE: print("section code\n");  break;
-        case LIT:  print("section data\n");  break;
-        case DATA: print("section vdata\n"); break;
-        case BSS:  print("section vdata\n"); break; /* FIXME: real BSS? */
-        }
-        cur_seg = seg;
+    case CODE: print("section code\n");  break;
+    case LIT:  print("section data\n");  break;
+    case DATA: print("section vdata\n"); break;
+    case BSS:  print("section bss\n");   break;
     }
 }
 
@@ -142,9 +137,9 @@ static void X(function)(Symbol f, Symbol caller[], Symbol callee[], int ncalls)
     gencode(caller, callee);
 
     /* Emit prologue */
-    print("\t%s%s\n", FUNC_PREFIX , f->name);
+    print("\t:%s\n", f->name);
     print("\t\tdc.b 0xc1 4 2 0 0\n");
-    print("\t\tadd {0}.l %d {4}.l\n", locals_size + staging_size);
+    print("\t\tadd {0} %d {4}\n", locals_size + staging_size);
 
     /* Caller passes BP in loc(0), callee computes SP in loc(1)
 
@@ -222,9 +217,8 @@ static void eval_call(Node p, int keep_result)
     assert(generic(p->op) == CALL);
     assert(p->kids[0]->op == ADDRG + P + sizeop(4));
     assert(p->kids[0]->syms[0]->scope == GLOBAL);
-    print("\t\tcallfi %s%s.l {4}.l %s\n",
-            FUNC_PREFIX, p->kids[0]->syms[0]->name,
-            keep_result ? "(sp)" : "~" );
+    print("\t\tcallfi :%s {4} %s\n",
+            p->kids[0]->syms[0]->name, keep_result ? "(sp)" : "~" );
 }
 
 static void eval_to_stack(Node p)
@@ -236,17 +230,17 @@ static void eval_to_stack(Node p)
         break;
 
     case ADDRG:  /* address of global variable */
-        print("\t\tcopy %s%s.l (sp)  ; global %s\n",
-              VAR_PREFIX, p->syms[0]->name, p->syms[0]->name);
+        print("\t\tcopy :%s (sp)  ; global %s\n",
+              p->syms[0]->name, p->syms[0]->name);
         break;
 
     case ADDRF:  /* address of argument (formal parameter) */
-        print("\t\tadd {0}.l %d (sp)  ; param %s\n",
+        print("\t\tadd {0} %d (sp)  ; param %s\n",
               p->syms[0]->x.offset, p->syms[0]->name);
         break;
 
     case ADDRL:  /* address of local variable */
-        print("\t\tadd {0}.l %d (sp)  ; local %s\n",
+        print("\t\tadd {0} %d (sp)  ; local %s\n",
               p->syms[0]->x.offset, p->syms[0]->name);
         break;
 
@@ -383,11 +377,6 @@ static void eval_to_stack(Node p)
     }
 }
 
-static const char *label_name(Symbol sym)
-{
-    return stringf("%s%s@%s", LABEL_PREFIX, cur_func->name, sym->name);
-}
-
 static void X(emit)(Node p)
 {
     for (; p; p = p->link)
@@ -402,7 +391,7 @@ static void X(emit)(Node p)
             assert(opsize(p->op) == 4);
             assert(p->x.argno > 0);
             eval_to_stack(p->kids[0]);
-            print("\t\tastore {4}.l %d (sp)\n", -p->x.argno);
+            print("\t\tastore {4} %d (sp)\n", -p->x.argno);
             break;
 
         case ASGN:
@@ -437,11 +426,11 @@ static void X(emit)(Node p)
 
         case JUMP:
             assert(p->kids[0]->op == ADDRG + P + sizeop(4));
-            print("\t\tjump %s\n", label_name(p->kids[0]->syms[0]));
+            print("\t\tjump :%s\n", p->kids[0]->syms[0]->name);
             break;
 
         case LABEL:
-            print("\t%s\n", label_name(p->syms[0]));
+            print("\t:%s\n", p->syms[0]->name);
             break;
 
         case EQ:
@@ -478,7 +467,7 @@ static void X(emit)(Node p)
                 assert(op != NULL);
                 assert(p->syms[0]->scope == LABELS);
 
-                print("\t\t%s (sp) (sp) %s\n", op, label_name(p->syms[0]));
+                print("\t\t%s (sp) (sp) :%s\n", op, p->syms[0]->name);
             } break;
 
         case RET:

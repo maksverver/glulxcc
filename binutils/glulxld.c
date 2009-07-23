@@ -354,7 +354,11 @@ static const struct section *find_section_by_type(enum secttype type)
 
 static void resolve_main()
 {
-    const struct export *e = find_export("main");
+    const struct export *e;
+
+    e = find_export("_start");
+    if (e == NULL) e = find_export("main");
+
     if (e != NULL)
     {
         main_section = e->section;

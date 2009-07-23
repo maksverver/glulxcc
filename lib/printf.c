@@ -2,7 +2,7 @@
 #include "stdlib.h"
 #include "stdarg.h"
 
-static const char *_utoa(unsigned u)
+static const char *utoa(unsigned u)
 {
     static char buf[12] = { 0 };
     char *p = &buf[11];
@@ -13,16 +13,16 @@ static const char *_utoa(unsigned u)
     return p;
 }
 
-static const char *_itoa(int i)
+static const char *itoa(int i)
 {
     const char *p;
     if (i > 0)
     {
-        p = _utoa((unsigned)i);
+        p = utoa((unsigned)i);
     }
     else
     {
-        p = _utoa((unsigned)-i);
+        p = utoa((unsigned)-i);
         *(char*)--p = '-';
     }
     return p;
@@ -82,11 +82,11 @@ int printf(const char *fmt, ...)
 
             case 'd':
             case 'i':
-                written += _write(_itoa(va_arg(ap, int)));
+                written += _write(itoa(va_arg(ap, int)));
                 break;
 
             case 'u':
-                written += _write(_utoa(va_arg(ap, unsigned)));
+                written += _write(utoa(va_arg(ap, unsigned)));
                 break;
 
             case 'c':

@@ -15,6 +15,11 @@ install:
 	install -s build/cpp $(LIBEXECDIR)
 	install -s build/rcc $(LIBEXECDIR)
 
+uninstall:
+	rm -f $(BINDIR)/glulxcc
+	rm -f $(LIBEXECDIR)/{glulxas,glulxld,cpp,rcc}
+	rmdir $(LIBEXECDIR)
+	
 
 build/glulxas:
 	make -C binutils glulxas
@@ -40,4 +45,4 @@ distclean: clean
 	make -C lcc clobber
 	rm -f $(TARGETS)
 
-.PHONY: all clean distclean install
+.PHONY: all clean distclean install $(TARGETS)

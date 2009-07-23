@@ -8,8 +8,8 @@ define(`lst', `substr(`$1', eval(len(`$1') - 1))')dnl
 define(`narg', `eval(fst(`$1') - ifelse(lst(`$1'), `:', 0, 1))')dnl
 define(`stub', `dnl
 section code
-export func@glk_`$2'
-:func@glk_`$2'
+export glk_`$2'
+:glk_`$2'
 	dc.b 0xc1 4 1 0 0
 copyargs(narg(`$3'))dnl
 	glk $1 narg(`$3') (sp)
