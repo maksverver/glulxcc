@@ -3,7 +3,7 @@
 export _start
 
 section bss
-:stack	dc.l 15360  ; 60 KB
+:stack	ds.l 15360  ; 60 KB
 
 section vdata
 :argv0	dc.b 109 97 105 110 0  ; "main"

@@ -16,7 +16,7 @@ static const char *utoa(unsigned u)
 static const char *itoa(int i)
 {
     const char *p;
-    if (i > 0)
+    if (i >= 0)
     {
         p = utoa((unsigned)i);
     }
