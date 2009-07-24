@@ -1,14 +1,27 @@
-Numbers are stored in 32 bits (4 octets) in big endian order.
+Each object file is stored in a Glulx object chunk, which contains exactly one
+header chunk, code table, import table, export table and cross references table,
+in that specific order.
 
-TODO: make this into an IFF format?
+Note that a file may contain multiple object chunks, so compiled object files
+can be concatenated into simple archives. All number are stored in in big endian
+byte-order. All chunks sizes are multiples of 4, so all chunks are aligned to
+four-byte boundaries.
 
-Header
-    8   glulxobj
-    4   version number (1)
-    4   minimum stack size
+Glulx Object chunk
+    4   FORM
+    4   remaining chunk size
+    4   GLUO
+    -   remaining chunk data
 
-Code table
-    4   remaining table size (S; multiple of 4)
+Header chunk
+    4   HEAD
+    4   header chunk size (8)
+    4   version (xxxx.yy.zz); 1.0.0 == 0x00010000
+    4   minimum stack size required
+
+Code table chunk
+    4   CODE
+    4   code table chunk size (multiple of 4)
     4   number of sections (N)
     For each section:
         4   section type (0:code, 1:data, 2:vcode, 3:vdata, 4:bss)
@@ -19,8 +32,9 @@ Code table
             (if section type == bss, no section data is included)
     End of section entry
 
-Import table
-    4   remaining table size (S; multiple of 4)
+Import table chunk
+    4   IMPO
+    4   import table chunk size (S; multiple of 4)
     4   number of entries (N)
     For each entry:
     4   name (offset relative to start of import table)
@@ -28,7 +42,8 @@ Import table
  S-4-4N string data (ends with a zero)
 
 Export table
-    4   remaining table size (S; multiple of 4)
+    4   EXPO
+    4   export table chunk size (S; multiple of 4)
     4   number of entries (N)
     For each entry:
     4   name (offset relative to start of export table)
@@ -37,8 +52,9 @@ Export table
     End of entry
 S-4-12N string data (ends with a zero)
 
-Cross-references
-    4   remaining table size (S; multiple of 4)
+Cross-references chunk
+    4   XREF
+    4   cross-references chunk size (S; multiple of 4)
     4   number of entries (N)
     For each entry:
     4   patched section

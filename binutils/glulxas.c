@@ -559,30 +559,6 @@ static void write_padding(FILE *fp, uint n, uint align)
     for (; n < m; ++n) fputc(0, fp);
 }
 
-static void write_code_table(FILE *fp)
-{
-    uint total_size = 4, n;
-    for (n = 0; n < nsection; ++n)
-    {
-        total_size += 12;
-        if (sections[n].type != SECTION_BSS)
-            total_size += roundup(sections[n].size, 4);
-    }
-    write_int(fp, total_size);
-    write_int(fp, nsection);
-    for (n = 0; n < nsection; ++n)
-    {
-        write_int(fp, sections[n].type);
-        write_int(fp, sections[n].size);
-        write_int(fp, 0);
-        if (sections[n].type != SECTION_BSS)
-        {
-            fwrite(sections[n].data, 1, sections[n].size, fp);
-            write_padding(fp, sections[n].size, 4);
-        }
-    }
-}
-
 /* Create the import table, assuming globalrefs and globaldefs are sorted by
    label name. Every globalref that doesn't have a globaldef with a
    corresponding label is turned into an import (except that every name is
@@ -612,102 +588,6 @@ static void create_imports()
         /* Add import: */
         resize(import, nimport + 1);
         imports[nimport - 1] = globalrefs[r].label;
-    }
-
-}
-
-static void write_import_table(FILE *fp)
-{
-    uint total_size = 4, n, str_offset;
-    for (n = 0; n < nimport; ++n)
-        total_size += 4 + strlen(imports[n]) + 1;
-    write_int(fp, roundup(total_size, 4));
-    write_int(fp, nimport);
-    str_offset = 4 + 4*nimport;
-    for (n = 0; n < nimport; ++n)
-    {
-        write_int(fp, str_offset);
-        str_offset += strlen(imports[n]) + 1;
-    }
-    for (n = 0; n < nimport; ++n)
-    {
-        fwrite(imports[n], 1, strlen(imports[n]), fp);
-        fputc(0, fp);
-    }
-    write_padding(fp, total_size, 4);
-}
-
-static void write_export_table(FILE *fp)
-{
-    uint total_size = 4, n, str_offset, d = 0;
-    for (n = 0; n < nexport; ++n)
-        total_size += 12 + strlen(exports[n]) + 1;
-    write_int(fp, roundup(total_size, 4));
-    write_int(fp, nexport);
-    str_offset = 4 + 12*nexport;
-    for (n = 0; n < nexport; ++n)
-    {
-        /* Find matching section */
-        for ( ; d < nglobaldef; ++d)
-        {
-            if (strcmp(exports[n], globaldefs[d].label) == 0) break;
-        }
-        if (d == nglobaldef)
-            fatal("no label corresponding to exported symbol \"%s\"", exports[n]);
-
-        write_int(fp, str_offset);
-        str_offset += strlen(exports[n]) + 1;
-        write_int(fp, globaldefs[d].section);
-        write_int(fp, globaldefs[d].offset);
-    }
-    for (n = 0; n < nexport; ++n)
-    {
-        fwrite(exports[n], 1, strlen(exports[n]), fp);
-        fputc(0, fp);
-    }
-    write_padding(fp, total_size, 4);
-}
-
-static void write_xref_table(FILE *fp)
-{
-    uint r, d, i;  /* current globalref, globaldef and import */
-    write_int(fp, 4 + 16*nglobalref);
-    write_int(fp, nglobalref);
-
-    d = i = 0;
-    for (r = 0; r < nglobalref; ++r)
-    {
-        const struct labelref *ref = &globalrefs[r];
-
-        write_int(fp, ref->section);
-        write_int(fp, ref->offset);
-
-        /* Find a matching definition */
-        for ( ; d < nglobaldef; ++d)
-        {
-            int diff = strcmp(globaldefs[d].label, ref->label);
-            if (diff < 0) continue;
-            if (diff > 0) break;
-            write_int(fp, globaldefs[d].section);
-            write_int(fp, globaldefs[d].offset);
-            goto next;
-        }
-
-        /* No matching definition; find a matching import instead */
-        for ( ; i < nimport; ++i)
-        {
-            int diff = strcmp(imports[i], ref->label);
-            if (diff < 0) continue;
-            if (diff > 0) break;
-            write_int(fp, -1);
-            write_int(fp, i);
-            goto next;
-        }
-
-        /* No matching import found either! This can't happen. */
-        assert(0);
-
-    next: continue;
     }
 }
 
@@ -765,14 +645,176 @@ static void sort_globalrefs()
     qsort(globalrefs, nglobalref, sizeof(struct labelref), cmp_globalref);
 }
 
+/* Note; should only be called with a string literal e.g. fourcc("ABCD") */
+#define fourcc(id) ((id[0]<<24)|(id[1]<<16)|(id[2]<<8)|(id[3]))
+
+static void write_code_table(FILE *fp)
+{
+    uint n;
+    write_int(fp, nsection);
+    for (n = 0; n < nsection; ++n)
+    {
+        write_int(fp, sections[n].type);
+        write_int(fp, sections[n].size);
+        write_int(fp, 0);
+        if (sections[n].type != SECTION_BSS)
+        {
+            fwrite(sections[n].data, 1, sections[n].size, fp);
+            write_padding(fp, sections[n].size, 4);
+        }
+    }
+}
+
+static void write_import_table(FILE *fp)
+{
+    uint n, str_offset;
+    write_int(fp, nimport);
+    str_offset = 4 + 4*nimport;
+    for (n = 0; n < nimport; ++n)
+    {
+        write_int(fp, str_offset);
+        str_offset += strlen(imports[n]) + 1;
+    }
+    for (n = 0; n < nimport; ++n)
+    {
+        fwrite(imports[n], 1, strlen(imports[n]), fp);
+        fputc(0, fp);
+    }
+}
+
+static void write_export_table(FILE *fp)
+{
+    uint n, str_offset, d = 0;
+    write_int(fp, nexport);
+    str_offset = 4 + 12*nexport;
+    for (n = 0; n < nexport; ++n)
+    {
+        /* Find matching section */
+        for ( ; d < nglobaldef; ++d)
+        {
+            if (strcmp(exports[n], globaldefs[d].label) == 0) break;
+        }
+        if (d == nglobaldef)
+            fatal("no label corresponding to exported symbol \"%s\"", exports[n]);
+
+        write_int(fp, str_offset);
+        str_offset += strlen(exports[n]) + 1;
+        write_int(fp, globaldefs[d].section);
+        write_int(fp, globaldefs[d].offset);
+    }
+    for (n = 0; n < nexport; ++n)
+    {
+        fwrite(exports[n], 1, strlen(exports[n]), fp);
+        fputc(0, fp);
+    }
+}
+
+static void write_xref_table(FILE *fp)
+{
+    uint r, d, i;  /* current globalref, globaldef and import */
+    write_int(fp, nglobalref);
+    d = i = 0;
+    for (r = 0; r < nglobalref; ++r)
+    {
+        const struct labelref *ref = &globalrefs[r];
+
+        write_int(fp, ref->section);
+        write_int(fp, ref->offset);
+
+        /* Find a matching definition */
+        for ( ; d < nglobaldef; ++d)
+        {
+            int diff = strcmp(globaldefs[d].label, ref->label);
+            if (diff < 0) continue;
+            if (diff > 0) break;
+            write_int(fp, globaldefs[d].section);
+            write_int(fp, globaldefs[d].offset);
+            goto next;
+        }
+
+        /* No matching definition; find a matching import instead */
+        for ( ; i < nimport; ++i)
+        {
+            int diff = strcmp(imports[i], ref->label);
+            if (diff < 0) continue;
+            if (diff > 0) break;
+            write_int(fp, -1);
+            write_int(fp, i);
+            goto next;
+        }
+
+        /* No matching import found either! This can't happen. */
+        assert(0);
+
+    next: continue;
+    }
+}
+
 static void write_object_file(FILE *fp)
 {
-    fwrite("glulxobj", 1, 8, fp);
-    write_int(fp, 1);  /* version */
+    uint szFORM, szHEAD, szCODE, szIMPO, szEXPO, szXREF;
+    uint n;
+
+    szFORM = 4;
+
+    szHEAD = 8;
+    szFORM += 8 + szHEAD;
+
+    /* Calculate code table size */
+    szCODE = 4 + 12*nsection;
+    for (n = 0; n < nsection; ++n)
+        if (sections[n].type != SECTION_BSS)
+            szCODE += roundup(sections[n].size, 4);
+    szFORM += 8 + szCODE;
+
+    /* Calculate import table size */
+    szIMPO = 4 + 4*nimport;
+    for (n = 0; n < nimport; ++n) szIMPO += strlen(imports[n]) + 1;
+    szFORM += 8 + roundup(szIMPO, 4);
+
+    /* Calculate export table size */
+    szEXPO = 4 + 12*nexport;
+    for (n = 0; n < nexport; ++n) szEXPO += strlen(exports[n]) + 1;
+    szFORM += 8 + roundup(szEXPO, 4);
+
+    /* Calculate cross-references size */
+    szXREF = 4 + 16*nglobalref;
+    szFORM += 8 + szXREF;
+
+    /* Write encapsulating FORM chunk */
+    write_int(fp, fourcc("FORM"));
+    write_int(fp, szFORM);
+    write_int(fp, fourcc("GLUO"));
+
+    /* Write header */
+    write_int(fp, fourcc("HEAD"));
+    write_int(fp, szHEAD);
+    assert(szHEAD == 8);
+    write_int(fp, 0x00010000);  /* version */
     write_int(fp, stack_size);
+
+    /* Write code table */
+    write_int(fp, fourcc("CODE"));
+    write_int(fp, szCODE);
+    assert(szCODE%4 == 0);
     write_code_table(fp);
+
+    /* Write import table */
+    write_int(fp, fourcc("IMPO"));
+    write_int(fp, roundup(szIMPO, 4));
     write_import_table(fp);
+    write_padding(fp, szIMPO, 4);
+
+    /* Write export table */
+    write_int(fp, fourcc("EXPO"));
+    write_int(fp, roundup(szEXPO, 4));
     write_export_table(fp);
+    write_padding(fp, szEXPO, 4);
+
+    /* Write cross-references */
+    write_int(fp, fourcc("XREF"));
+    write_int(fp, szXREF);
+    assert(szXREF%4 == 0);
     write_xref_table(fp);
 }
 

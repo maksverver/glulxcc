@@ -131,27 +131,69 @@ static void set_int(void *data, uint32_t value)
     ((unsigned char*)data)[3] = (value >>  0)&0xff;
 }
 
-static uint32_t read_int(FILE *fp)
-{
-    unsigned char buf[4];
-    if (fread(buf, 1, 4, fp) != 4) fatal("read failed");
-    return get_int(buf);
-}
+#define fourcc(a,b,c,d) (((a)<<24)|((b)<<16)|((c)<<8)|(d))
 
-static char *read_table(FILE *fp, size_t *size)
+/* Reads an IFF chunk and returns its type. */
+static uint read_chunk(FILE *fp, char **data_out, size_t *size_out)
 {
-    char buf[4], *data;
-    if (fread(buf, 1, 4, fp) != 4) return NULL;
-    *size = (size_t)get_int(buf);
-    if (*size < 4 || *size%4 != 0) return NULL;
-    data = malloc(*size);
-    if (data == NULL) return NULL;
-    if (fread(data, 1, *size, fp) != *size)
+    char buf[8], *data;
+    uint type, size, readsize;
+
+    *data_out = NULL;
+    *size_out = 0;
+    if (fread(buf, 8, 1, fp) != 1) return 0;
+    type = get_int(buf + 0);
+    size = get_int(buf + 4);
+    if (type == 0) return 0;
+    readsize = roundup(size, 2);
+    if ((data = malloc(readsize)) == NULL) return 0;
+    if (fread(data, 1, readsize, fp) != readsize)
     {
         free(data);
-        return NULL;
+        return 0;
     }
-    return data;
+    *data_out = data;
+    *size_out = size;
+    return type;
+}
+
+/* Parses an IFF chunk from a memory buffer and returns its type. */
+static uint parse_chunk(char *data_in, size_t size_in,
+                        char **data_out, size_t *size_out)
+{
+    uint type, size;
+    if (size_in < 8) return 0;
+    type = get_int(data_in + 0);
+    size = get_int(data_in + 4);
+    if (size_in - 8 < size) return 0;
+    *data_out = data_in + 8;
+    *size_out = size;
+    return type;
+}
+
+/* Updates data and size to point past the current chunk */
+static void skip_chunk(char **data, size_t *size)
+{
+    uint chunk_size;
+    assert(*size >= 8);
+    chunk_size = get_int(*data + 4);
+    if (chunk_size%2 == 1) chunk_size += 1;
+    assert(chunk_size <= *size - 8);
+    *data += 8 + chunk_size;
+    *size -= 8 + chunk_size;
+}
+
+static bool parse_header(char *data, size_t size)
+{
+    uint version, minstack;
+    if (size < 8) return false;
+    version  = get_int(data + 0);
+    minstack = get_int(data + 4);
+    if ((version&0xffff0000) != 0x00010000)
+        return false;
+    if (minstack > stacksize)
+        stacksize = roundup(minstack, 256);
+    return true;
 }
 
 /* FIXME: this function does not check for buffer overflows */
@@ -211,7 +253,7 @@ static bool parse_export_table(char *data, size_t size)
     return true;
 }
 
-static bool parse_cross_references(char *data, size_t size)
+static bool parse_xref_table(char *data, size_t size)
 {
     char *entry;
     uint nxr = get_int(data), n;
@@ -244,54 +286,86 @@ static bool parse_cross_references(char *data, size_t size)
 static void read_input(const char *path)
 {
     FILE *fp;
-    char magic[8];
-    uint version, minstack;
-    char *data;
-    size_t size;
-
-    start_section = nsection;
+    uint num_objects, type;
+    char *data, *chunk_data;
+    size_t size, chunk_size;
 
     /* Open file */
     fp = fopen(path, "rb");
     if (fp == NULL) fatal("could not open \"%s\" for reading", path);
 
-    /* Read header, check version */
-    if (fread(magic, 1, 8, fp) != 8 || memcmp(magic, "glulxobj", 8) != 0 ||
-        (version = read_int(fp)) != 1)
-        fatal("file \"%s\" is not a version 1 Glulx object file", path);
+    num_objects = 0;
+    while ((type = read_chunk(fp, &data, &size)) != 0)
+    {
+        /* Recognize Glulx object chunks */
+        if (type != fourcc('F','O','R','M') || size < 4 ||
+            get_int(data) != fourcc('G','L','U','O'))
+        {
+            fprintf(stderr, "WARNING: skipping unexpected chunk "
+                            "in \"%s\"\n", path);
+            free(data);
+            continue;
+        }
 
-    /* Read required stack size */
-    minstack = read_int(fp);
-    if (minstack > stacksize) stacksize = roundup(minstack, 256);
+        /* Initialize */
+        start_section = nsection;
+        data += 4;
+        size -= 4;
 
-    /* Read and parse code table */
-    if ((data = read_table(fp, &size)) == NULL)
-        fatal("could not read code table from file \"%s\"", path);
-    if (!parse_code_table(data, size))
-        fatal("could not parse code table from file \"%s\"", path);
+        /* Parse chunks in this FORM chunk */
+        while ((type = parse_chunk(data, size, &chunk_data, &chunk_size)) != 0)
+        {
+            if (type == fourcc('H','E','A','D'))
+            {
+                if (!parse_header(chunk_data, chunk_size))
+                {
+                    fprintf(stderr, "WARNING: invalid Glulx header chunk in "
+                                    "\"%s\"\n", path);
+                    break;
+                }
+            }
+            else
+            {
+                bool parsed = false;
+                switch (type)
+                {
+                case fourcc('C','O','D','E'):
+                    parsed = parse_code_table(chunk_data, chunk_size);
+                    break;
+                case fourcc('I','M','P','O'):
+                    parsed = parse_import_table(chunk_data, chunk_size);
+                    break;
+                case fourcc('E','X','P','O'):
+                    parsed = parse_export_table(chunk_data, chunk_size);
+                    break;
+                case fourcc('X','R','E','F'):
+                    parsed = parse_xref_table(chunk_data, chunk_size);
+                    break;
+                }
+                if (!parsed)
+                {
+                    fprintf(stderr,
+                            "WARNING: couldn't parse chunk in \"%s\"\n", path);
+                }
+            }
+            skip_chunk(&data, &size);
+        }
 
-    /* Read and parse import table */
-    if ((data = read_table(fp, &size)) == NULL)
-        fatal("could not read import table from file \"%s\"", path);
-    if (!parse_import_table(data, size))
-        fatal("could not parse import table from file \"%s\"", path);
+        if (size > 0)
+        {
+            fprintf(stderr,
+                    "WARNING: could not completely parse \"%s\"\n", path);
+        }
 
-    /* Read and parse export table */
-    if ((data = read_table(fp, &size)) == NULL)
-        fatal("could not read export table from file \"%s\"", path);
-    if (!parse_export_table(data, size))
-        fatal("could not parse export table from file \"%s\"", path);
+        /* Free import table (note: strings themselves are NOT freed here!) */
+        free(imports);
+        imports = NULL;
+        nimport = 0;
+        num_objects++;
+    }
 
-    /* Read and parse cross-references */
-    if ((data = read_table(fp, &size)) == NULL)
-        fatal("could not read cross-references from file \"%s\"", path);
-    if (!parse_cross_references(data, size))
-        fatal("could not parse cross-references from file \"%s\"", path);
-
-    /* Free import table (note: strings themselves are NOT freed here!) */
-    free(imports);
-    imports = NULL;
-    nimport = 0;
+    if (num_objects == 0)
+        fprintf(stderr, "WARNING: no objects read from \"%s\"\n", path);
 }
 
 static int cmp_exports_by_name(const void *a, const void *b)
@@ -502,7 +576,7 @@ static void assign_addresses()
 
 static void fix_references()
 {
-    unsigned n;
+    uint n;
     for (n = 0; n < nxref; ++n)
     {
         struct section *patch = &sections[xrefs[n].patch_section];
@@ -525,7 +599,7 @@ static void fix_references()
 
 static void create_module()
 {
-    unsigned n;
+    uint n;
 
     /* Allocate module memory (and initialize to zero) */
     module = malloc(extstart);
@@ -558,7 +632,7 @@ static void create_module()
 
 static void update_checksum()
 {
-    unsigned checksum = 0, n;
+    uint checksum = 0, n;
     for (n = 0; n < extstart; n += 4)
         checksum += get_int(module + n);
     set_int(module + 32, checksum);
