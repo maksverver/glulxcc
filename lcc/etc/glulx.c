@@ -5,7 +5,9 @@
 #ifndef PREFIX
 #error "PREFIX not set"
 #else
-#define LCCDIR PREFIX "/lib/glulxcc/"
+#define LIBDIR     PREFIX "/lib/glulxcc/"
+#define LIBEXECDIR LIBDIR
+#define INCDIR     PREFIX "/include/glulxcc/"
 #endif
 
 char *suffixes[] = {
@@ -24,11 +26,11 @@ char inputs[256] = "";
     $2 == input file(s)
     $3 == output file
    The expanded lists can be empty (i.e. if there are no options given). */
-char *cpp[] = { LCCDIR "cpp", "-Dglulx", "-D__glulx__", "$1", "$2", "$3", 0 };
-char *include[] = {"-I" LCCDIR "include", 0 };
-char *com[] = { LCCDIR "rcc", "-target=glulx", "$1", "$2", "$3", 0 };
-char *as[] = { LCCDIR "glulxas", "$1", "$2", "$3", 0 };
-char *ld[] = { LCCDIR "glulxld", "-o", "$3", "$1", "$2", 0 };
+char *cpp[] = { LIBEXECDIR "cpp", "-Dglulx", "-D__glulx__", "$1", "$2", "$3", 0 };
+char *com[] = { LIBEXECDIR "rcc", "-target=glulx", "$1", "$2", "$3", 0 };
+char *as[]  = { LIBEXECDIR "glulxas", "$1", "$2", "$3", 0 };
+char *ld[]  = { LIBEXECDIR "glulxld", "-L" LIBDIR, "-o", "$3", "$1", "$2", 0 };
+char *include[] = { "-I" INCDIR, 0 };
 
 /* Parse options */
 int option(char *arg)
@@ -36,11 +38,11 @@ int option(char *arg)
     if (strncmp(arg, "-lccdir=", 8) == 0)
     {
         extern char *concat(char *, char *);
-        cpp[0]     = concat(&arg[8], "/cpp");
-        include[0] = concat("-I", concat(&arg[8], "/include"));
-        com[0]     = concat(&arg[8], "/rcc");
-        as[0]      = concat(&arg[8], "/glulxas");
-        ld[0]      = concat(&arg[8], "/glulxld");
+        cpp[0] = concat(&arg[8], "/cpp");
+        com[0] = concat(&arg[8], "/rcc");
+        as[0]  = concat(&arg[8], "/glulxas");
+        ld[0]  = concat(&arg[8], "/glulxld");
+        ld[1]  = concat("-L", &arg[8]);
         return 1;
     }
 

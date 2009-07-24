@@ -1,7 +1,9 @@
 include custom.mk
 
-BINDIR="$(PREFIX)/bin/"
-LIBEXECDIR="$(PREFIX)/lib/glulxcc/"
+BINDIR=$(PREFIX)/bin/
+LIBDIR=$(PREFIX)/lib/glulxcc/
+INCDIR=$(PREFIX)/include/glulxcc/
+LIBEXECDIR=$(LIBDIR)
 TARGETS=build/glulxas build/glulxld build/lcc build/cpp build/rcc build/libc.ulo
 
 all: $(TARGETS)
@@ -14,12 +16,17 @@ install:
 	install -s build/glulxld $(LIBEXECDIR)
 	install -s build/cpp $(LIBEXECDIR)
 	install -s build/rcc $(LIBEXECDIR)
+	cp build/libc.ulo $(LIBDIR)
+	mkdir -p $(INCDIR)
+	for file in `ls include`; do cp include/"$$file" $(INCDIR); done
 
 uninstall:
 	rm -f $(BINDIR)/glulxcc
 	rm -f $(LIBEXECDIR)/{glulxas,glulxld,cpp,rcc}
+	rm -f $(LIBDIR)/libc.ulo
 	rmdir $(LIBEXECDIR)
-	
+	for file in `ls include`; do rm -f $(INCDIR)/$$file; done
+	rmdir $(INCDIR)
 
 build/glulxas:
 	make -C binutils glulxas

@@ -13,6 +13,12 @@ typedef unsigned int   uint;
 enum secttype { SECTION_CODE = 0, SECTION_DATA = 1, SECTION_VCODE = 2,
                 SECTION_VDATA = 3, SECTION_BSS = 4, SECTION_INVALID = -1 };
 
+struct searchpath
+{
+    struct searchpath *next;
+    const char *directory;
+};
+
 struct section
 {
     /* read from the object file: */
@@ -58,7 +64,7 @@ static struct section **used;
 static uint ramstart;
 static uint extstart;
 static uint endmem;
-static uint stacksize;
+static uint stacksize = 256;
 static char *module;
 
 /* For current file: */
@@ -95,11 +101,6 @@ static uint roundup(uint n, uint align)
     uint m = n%align;
     if (m != 0) n += align - m;
     return n;
-}
-
-static void usage()
-{
-    printf("usage: glulxld [-o module] object ...\n");
 }
 
 static void fatal(const char *fmt, ...)
@@ -368,6 +369,51 @@ static void read_input(const char *path)
         fprintf(stderr, "WARNING: no objects read from \"%s\"\n", path);
 }
 
+
+/* Returns a library filename of the form "${dir}/lib{$name}.ulo". */
+static char *libfilename(const char *dir, const char *name)
+{
+    char *buf = malloc(strlen(dir) + 4 + strlen(name) + 4 + 1);
+    assert(buf != NULL);
+    sprintf(buf, "%s/lib%s.ulo", dir, name);
+    return buf;
+}
+
+/* Adds an entry at the end of the search path list, WITHOUT copying the path
+   argument (so it should remain valid). */
+static void add_search_path(struct searchpath **paths, const char *path)
+{
+    struct searchpath *entry = malloc(sizeof(*entry));
+    assert(entry != NULL);
+    entry->next      = NULL;
+    entry->directory = path;
+    while (*paths != NULL) paths = &(*paths)->next;
+    *paths = entry;
+}
+
+static bool can_open(const char *path)
+{
+    FILE *fp = fopen(path, "rb");
+    if (fp == NULL) return false;
+    fclose(fp);
+    return true;
+}
+
+static void read_library(const struct searchpath *paths, const char *name)
+{
+    for ( ; paths != NULL; paths = paths->next)
+    {
+        char *path = libfilename(paths->directory, name);
+        if (can_open(path))
+        {
+            read_input(path);
+            return;
+        }
+        free(path);
+    }
+    fatal("could not find library named \"%s\"", name);
+}
+
 static int cmp_exports_by_name(const void *a, const void *b)
 {
     return strcmp(((struct export *)a)->name, ((struct export *)b)->name);
@@ -437,7 +483,15 @@ static void resolve_main()
     const struct export *e;
 
     e = find_export("_start");
-    if (e == NULL) e = find_export("main");
+    if (e == NULL)
+    {
+        e = find_export("main");
+        if (e != NULL)
+        {
+            fprintf(stderr, "WARNING: symbol \"_start\" not defined; using "
+                            "\"main\" instead.\n");
+        }
+    }
 
     if (e != NULL)
     {
@@ -665,36 +719,58 @@ static void write_output(const char *path)
 
 int main(int argc, char *argv[])
 {
+    int i;
+    bool parseopts = true;
     const char *out = "a.ulx";
-    int i = 1;
-    if (i < argc && argv[i][0] == '-')
+    struct searchpath *searchpaths = NULL;
+
+    if (argc <= 1)
     {
-        if (argv[i][1] == 'o')
+        printf("usage: glulxld [-o module] object ...\n");
+        return 0;
+    }
+
+    for (i = 1; i < argc; ++i)
+    {
+        if (parseopts && strcmp(argv[i], "--") == 0)
         {
-            if (argv[i][2] != '\0')
+            /* End of options */
+            parseopts = false;
+            continue;
+        }
+
+        if (parseopts && argv[i][0] == '-')
+        {
+            /* All supported options take an argument: */
+            const char *opt = argv[i], *arg = &argv[i][2];
+            if (*arg == '\0' && i < argc) arg = argv[++i];
+
+            switch (opt[1])
             {
-                out = argv[i] + 2;
-                i++;
-            }
-            else
-            if (i + 1 < argc)
-            {
-                out = argv[i + 1];
-                i += 2;
+            case 'o':
+                out = arg;
+                break;
+
+            case 'L':
+                add_search_path(&searchpaths, arg);
+                break;
+
+            case 'l':
+                read_library(searchpaths, arg);
+                break;
+
+            default:
+                fatal("unrecognized option: %s\n", opt);
+                break;
             }
         }
         else
         {
-            usage();
-            return 1;
+            /* Non-option argument: */
+            read_input(argv[i]);
         }
     }
-    if (i == argc)  /* no input files */
-    {
-        usage();
-        return 1;
-    }
-    for ( ; i < argc; ++i) read_input(argv[i]);
+
     process();
     write_output(out);
     return 0;

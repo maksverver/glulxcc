@@ -35,6 +35,11 @@ Usage:
     creates a complete version 3.1.1 Glulx module called output.ulx. If no name
     is given for the output filename, output is written to a.ulx by default.
 
+    The linker also accepts -L and -l arguments that specify library search
+    paths and libraries to include; for example: "glulxld -Lfoo -lbar" would
+    cause the linker to search for a file called "foo/libbar.ulo" (and exit
+    with an error if it is not found).
+
 Notes:
 
 The exported symbol "start_" determines the application entry point, or if it is
