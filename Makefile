@@ -2,7 +2,7 @@ include custom.mk
 
 BINDIR="$(PREFIX)/bin/"
 LIBEXECDIR="$(PREFIX)/lib/glulxcc/"
-TARGETS=build/glulxas build/glulxld build/lcc build/cpp build/rcc
+TARGETS=build/glulxas build/glulxld build/lcc build/cpp build/rcc build/libc.ulo
 
 all: $(TARGETS)
 
@@ -35,6 +35,9 @@ build/cpp:
 
 build/rcc:
 	make -C lcc rcc
+
+build/libc.ulo:
+	make -C lib all
 
 clean:
 	make -C binutils clean
