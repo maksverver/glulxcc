@@ -717,11 +717,36 @@ static void write_output(const char *path)
     fclose(fp);
 }
 
+static void write_debug_info(const char *path)
+{
+    FILE *fp;
+
+    fp = (*path == '\0' || strcmp(path, "-") == 0) ? stdout : fopen(path, "wt");
+    if (fp == NULL)
+        fatal("could not write debug output to \"%s\"", path);
+
+    uint n;
+    for (n = 0; n < nexport; ++n)
+    {
+        const struct export *e = &exports[n];
+        const struct section *s = &sections[e->section];
+        if (s->used)
+        {
+            fprintf(fp, "%08x %s\n", s->address + e->offset, e->name);
+        }
+        else
+        {
+            fprintf(fp, "-unused- %s\n", e->name);
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     int i;
     bool parseopts = true;
     const char *out = "a.ulx";
+    const char *debug_out = NULL;
     struct searchpath *searchpaths = NULL;
 
     if (argc <= 1)
@@ -747,16 +772,20 @@ int main(int argc, char *argv[])
 
             switch (opt[1])
             {
-            case 'o':
-                out = arg;
-                break;
-
             case 'L':
                 add_search_path(&searchpaths, arg);
                 break;
 
             case 'l':
                 read_library(searchpaths, arg);
+                break;
+
+            case 'd':
+                debug_out = arg;
+                break;
+
+            case 'o':
+                out = arg;
                 break;
 
             default:
@@ -773,5 +802,6 @@ int main(int argc, char *argv[])
 
     process();
     write_output(out);
+    if (debug_out != NULL) write_debug_info(debug_out);
     return 0;
 }
