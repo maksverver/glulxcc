@@ -789,7 +789,7 @@ int main(int argc, char *argv[])
                 break;
 
             default:
-                fatal("unrecognized option: %s\n", opt);
+                fatal("unrecognized option: %s", opt);
                 break;
             }
         }

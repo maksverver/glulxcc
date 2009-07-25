@@ -210,13 +210,26 @@ static Node X(gen)(Node start)
     return start;
 }
 
+static void eval_to_stack(Node p);
+
 static void eval_call(Node p, int keep_result)
 {
     assert(generic(p->op) == CALL);
-    assert(p->kids[0]->op == ADDRG + P + sizeop(4));
-    assert(p->kids[0]->syms[0]->scope == GLOBAL);
-    print("\tcallfi :%s {4} %s\n",
-            p->kids[0]->syms[0]->name, keep_result ? "(sp)" : "~" );
+    switch (p->kids[0]->op)
+    {
+    case ADDRG + P + sizeop(4):  /* call to label */
+        print("\tcallfi :%s {4} %s\n",
+                p->kids[0]->syms[0]->name, keep_result ? "(sp)" : "~" );
+        break;
+
+    case INDIR + P + sizeop(4):  /* call through function pointer */
+        eval_to_stack(p->kids[0]);
+        print("\tcallfi (sp) {4} %s\n", keep_result ? "(sp)" : "~" );
+        break;
+
+    default:
+        assert(0);
+    }
 }
 
 static void eval_to_stack(Node p)
