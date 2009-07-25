@@ -1,0 +1,25 @@
+section code
+
+export glulx_quit
+func_local glulx_quit 0
+	quit
+	return 0
+
+export glulx_debugtrap
+func_local glulx_debugtrap 1
+	aload {0} -1 (sp)
+	debugtrap (sp)
+	quit
+	return 0
+
+export glulx_random
+func_local glulx_random 1
+	aload {0} -1 (sp)
+	random (sp) (sp)
+	return (sp)
+
+export glulx_setrandom
+func_local glulx_setrandom 1
+	aload {0} -1 (sp)
+	setrandom (sp)
+	return 0

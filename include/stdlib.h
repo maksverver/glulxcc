@@ -7,11 +7,9 @@ typedef unsigned size_t;
 #define NULL ((void*)0)
 #endif
 
-#ifndef atol
 #define atol atoi
-#endif
-
 extern int atoi(const char *nptr);
+#define RAND_MAX 2147483647
 extern int rand(void);
 extern void srand(unsigned seed);
 extern void abort(void);

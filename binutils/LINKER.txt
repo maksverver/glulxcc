@@ -1,0 +1,73 @@
+Glulx linker v1.0
+By Maks Verver <maksverver@geocities.com>
+
+Usage:
+
+  glulxld -o output.ulx input1.ulo input2.ulo input3.ulo ..etc..
+
+    Links the input files (which must be object files created with glulxas) and
+    creates a complete version 3.1.1 Glulx module called output.ulx. If no name
+    is given for the output filename, output is written to a.ulx by default.
+
+    The linker also accepts -L and -l arguments that specify library search
+    paths and libraries to include; for example: "glulxld -Lfoo -lbar" would
+    cause the linker to search for a file called "foo/libbar.ulo" (and exit
+    with an error if it is not found).
+
+Notes:
+
+The exported symbol "start_" determines the application entry point, or if it is
+not defined, "main". If neither is defined, the start of the fist code section
+is used.
+
+The exported symbol "decodingtbl" determines the value for the initial decoding
+table. If it is not defined, no initial decoding table is set.
+
+Each object file can specify a stack size (with the stack directive); the final
+stack size for the linked module is the maximum of the stack sizes defined in
+all modules, rounded up to a 256 byte boundary, with a minimum of 256.
+
+Although the extsize directive is recognized for compatibility with glulxa, it
+is ignored by the assembler. To allocate memory past the extstart boundary,
+define data in the new bss section.
+
+
+Implementation:
+
+The linker takes a series of Glulx object files and creates a single executable
+module. This starts by loading all modules and resolving imported symbols. Then,
+the sections containing the start symbol (by default: "main") and the (optional)
+initial decoding table ("decodingtbl") are looked up, and a reachability
+analysis is performed from the section containing the start symbol.
+
+All reachable sections are reordered by:
+ 1. section type (ROM: code, data, RAM: vcode, vdata, EXT: bss)
+ 2. object file order on the command line
+ 3. section index in the original object file
+
+Now the section addresses are calculated. Sections are aligned to their
+respective boundaries.  Extra padding is inserted after the last code/data,
+vcode/vdata and bss sections to align the ROM, RAM and EXT sections to 256
+bytes.
+
+Finally, cross-references are resolved. For each cross reference, the 32-bit
+referenced address is added to whatever data is already present at the patched
+offset (in big-endian byte order); this will often be zero, but it doesn't have
+to be!
+
+Now all sections have fixed addresses and all cross-references have been
+resolved. The compiler constructs the compiler 
+    ROM:
+        header
+        code sections
+        data sections
+    RAM:
+        vcode sections
+        vdata sections
+    EXTSTART:
+        bss sections
+    EXTEND.
+
+Unsupported features:
+ - RAM-relative addresses
+ - cross-section relative jumps
