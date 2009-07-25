@@ -23,3 +23,10 @@ func_local glulx_setrandom 1
 	aload {0} -1 (sp)
 	setrandom (sp)
 	return 0
+
+export glulx_gestalt
+func_local glulx_gestalt 1
+	aload {0} -2 (sp)
+	aload {0} -1 (sp)
+	gestalt (sp) (sp) (sp)
+	return (sp)
