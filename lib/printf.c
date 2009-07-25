@@ -1,34 +1,17 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "stdarg.h"
+#include "intstr.h"
 
-static const char *utoa(unsigned u)
-{
-    static char buf[12] = { 0 };
-    char *p = &buf[11];
-    do {
-        *--p = '0' + u%10;
-        u /= 10;
-    } while (u > 0);
-    return p;
-}
+/* Defined in instr.c */
+extern const char *itostr(int i);       /* integer to decimal string */
+extern const char *otostr(unsigned u);  /* unsigned to octal string */
+extern const char *utostr(unsigned u);  /* unsigned to decimal string */
+extern const char *xtostr(unsigned u);  /* unsigned to lowercase hex. string */
+extern const char *Xtostr(unsigned u);  /* unsigned to uppercase hex. string */
 
-static const char *itoa(int i)
-{
-    const char *p;
-    if (i >= 0)
-    {
-        p = utoa((unsigned)i);
-    }
-    else
-    {
-        p = utoa((unsigned)-i);
-        *(char*)--p = '-';
-    }
-    return p;
-}
 
-static int _write(const char *s)
+static int write(const char *s)
 {
     int written = 0;
     if (s != NULL)
@@ -42,6 +25,26 @@ static int _write(const char *s)
     return written;
 }
 
+/* Writes `len' padding characters and returns the number of characters written;
+   note that `len' may be negative, nothing is written and 0 is returned. */
+static int write_padding(int len, int ch)
+{
+    int i;
+    for (i = 0; i < len; ++i) putchar(ch);
+    return i;
+}
+
+static int writepad(const char *s, int padto, int padch)
+{
+    if (padto == 0)
+        return write(s);
+    else
+    if (padto > 0)
+        return write_padding(padto - strlen(s), padch) + write(s);
+    else  /* padto < 0 */
+        return write(s) + write_padding(-padto - strlen(s), padch);
+}
+
 int putchar(int c)
 {
     glk_put_char(c);
@@ -50,7 +53,7 @@ int putchar(int c)
 
 int puts(const char *s)
 {
-    int n = _write(s);
+    int n = write(s);
     putchar('\n');
     return n + 1;
 }
@@ -69,35 +72,103 @@ int printf(const char *fmt, ...)
         }
         else
         {
-            switch (*++fmt)
+            const char *start = fmt;
+            int alt = 0, align = 0;
+            int padto = 0;
+            char padch = ' ';
+
+            ++fmt;  /* skip % */
+
+            /* Parse flags */
+            for (;;)
             {
-            default:
+                switch (*fmt)
+                {
+                case '0': padch = '0'; align = 0; break;
+                case '#': alt = 1; break;
+                case '-': padch = ' '; align = 1; break;
+                case 'l': /* long; ignored */ break;
+                default: goto end_of_flags;
+                }
+                ++fmt;
+            }
+        end_of_flags:
+
+            /* Parse padding width */
+            for ( ; *fmt >= '0' && *fmt <= '9'; ++fmt)
+                padto = 10*padto + (*fmt - '0');
+            if (align) padto = -padto;
+
+            /* Parse length modifiers (all ignored) */
+            for (;;)
+            {
+                switch (*fmt)
+                {
+                case 'h':
+                case 'l':
+                case 'L':
+                case 'q':
+                case 'j':
+                case 'z':
+                case 't':
+                    break;
+                default: goto end_of_length;
+                }
+                ++fmt;
+            }
+        end_of_length:
+
+            switch (*fmt)
+            {
+            case '%':  /* literal percentage */
                 putchar('%');
                 ++written;
-                /* falls through */
-            case '%':
-                putchar(*fmt);
-                ++written;
                 break;
 
-            case 'd':
+            case 'd':  /* signed decimal */
             case 'i':
-                written += _write(itoa(va_arg(ap, int)));
+                written += writepad(itostr(va_arg(ap, int)), padto, padch);
                 break;
 
-            case 'u':
-                written += _write(utoa(va_arg(ap, unsigned)));
+            case 'u':  /* unsigned decimal */
+                written += writepad(utostr(va_arg(ap, unsigned)), padto, padch);
                 break;
 
-            case 'c':
+            case 'o':  /* unsigned octal */
+                {
+                    unsigned u = va_arg(ap, unsigned);
+                    if (alt && u != 0)
+                    {
+                        putchar('0');
+                        ++written;
+                    }
+                    written += writepad(otostr(u), padto, padch);
+                } break;
+
+            case 'p':  /* unsigned pointer */
+                alt = 1;
+                /* falls through */
+            case 'x':  /* unsigned lowercase hexadecimal */
+                if (alt) written += write("0x");
+                written += writepad(xtostr(va_arg(ap, unsigned)), padto, padch);
+                break;
+
+            case 'X':  /* unsigned uppercase hexadecimal */
+                if (alt) written += write("0x");
+                written += writepad(Xtostr(va_arg(ap, unsigned)), padto, padch);
+                break;
+
+            case 'c':  /* single character */
                 putchar(va_arg(ap, int));
                 break;
 
-            case 's':
-                written += _write(va_arg(ap, const char*));
+            case 's':  /* zero-terminated string */
+                written += writepad(va_arg(ap, const char*), padto, padch);
                 break;
 
-            /* o, u, x, p: unsigned octal, decimal, hexadecimal, pointer */
+            default:  /* unrecognized option */
+                for ( ; start <= fmt; ++start) putchar(*start);
+                break;
             }
         }
     }

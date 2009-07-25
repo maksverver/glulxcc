@@ -1,6 +1,9 @@
 #include "stdlib.h"
 #include "string.h"
 
+/* NOTE: all of these can be implemented more efficiently with specialized
+         Glulx opcodes (linearsearch, memset, memcpy) */
+
 char *strcat(char *dest, const char *src)
 {
     strcpy(dest + strlen(dest), src);
