@@ -11,9 +11,11 @@ vdata               return VDATA;
 bss                 return BSS;
 stack               return STACK;
 ext                 return EXT;
-export[ \t\r]+[^ \n\t\r:;.,()\[\]{}]+ return EXPORT;
-import[ \t\r]+[^ \n\t\r:;.,()\[\]{}]+ return IMPORT;
 
+func_stack[ \t\r]+[^ \n\t\r:;.,()\[\]{}]+   return FUNC_STACK;
+func_local[ \t\r]+[^ \n\t\r:;.,()\[\]{}]+   return FUNC_LOCAL;
+export[ \t\r]+[^ \n\t\r:;.,()\[\]{}]+       return EXPORT;
+import[ \t\r]+[^ \n\t\r:;.,()\[\]{}]+       return IMPORT;
 ^[ \t\r]*:[^ \n\t\r:;.,()\[\]{}]+           return LABELDEF;
 :[^ \n\t\r:;.,()\[\]{}]+(:[+-]?[0-9]+)?     return LABELREF;
 

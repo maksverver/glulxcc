@@ -69,7 +69,8 @@ extern int yyparse();  /* generated from parser.y in parser.tab.c */
 /* These functions are called by the parser: */
 extern void set_stack_size(uint size);
 extern void set_ext_size(uint size);
-extern void begin_section(enum secttype secttype);
+extern void set_section(enum secttype secttype);
+extern void split_section();
 extern void def_export(const char *label);
 extern void def_label(const char *label);
 extern void emit_blank(uint count);

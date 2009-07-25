@@ -1,0 +1,76 @@
+Glulx assembler v1.0
+By Maks Verver <maksverver@geocities.com>
+
+Mostly compatible with glulxa 0.5 by Carlos Sánchez and Simon Stapleton, but
+with some additional features that make it more suitable for use as part of
+a compiler toolchain:
+ - Assembling and linking are separate steps, with an object format in between
+   to contain assembled (but not yet linked) code; symbols to be exported must
+   be marked explicitly with the export keyword (symbols that are not resolved
+   in a single translation unit are marked as imported symbols implicitly).
+ - Data defined in separate sections (i.e. separated by a section directive) is
+   candidate for deletion when linking is performed: all sections that are not
+   referenced directly or indirectly from the sections in which the application
+   entry point or the initial encoding table 
+
+Additionally, code generation is slightly different:
+ - Size prefixes are ignored (all operand sizes are computed automatically)
+   but they are recognized to stay compatible with glulxa.
+ - A two-pass assembler process to compact operands results in a compact
+   encoding of constants, local variable references and branch offsets.
+
+Usage:
+
+  glulxas input.ula output.ulo
+
+    Assembles the file input.ula and creates an object file called output.ulo.
+    If the second operand is omitted, the object file name is chosen
+    automatically by taking the input file's base name and appending ".ulo".
+    Finally, if no arguments are given, the assembler reads from standard input
+    and writes the resultin gobject file to standard output
+
+Bugs/limitations:
+ - support for RAM-relative memory references is not implemented yet.
+ - branch offsets are computed correctly only for section-local label
+   references.
+
+Syntax:
+ - TODO: document (see Glulxa 0.5 for now)
+
+Special directives:
+
+  section code/data/vcode/vdata/bss
+
+    Change the section in which other directives produce output. The code and
+    data sections will reside in read-only memory. The bss section contains
+    zero-initialized data, regardless of what other directives specify. There is
+    no functional difference between code and data (or vcode & vdata) sections.
+
+  ext <size>
+
+    Ignored. (Supported for compatibility with Glulxa, but extended memory is
+    allocated in bss sections instead.)
+
+  stack <size>
+
+    Set the minimum stack size required. When multiple object files are linked,
+    the maximum of the stack sizes specified (rounded up to a 256 byte boundary)
+    determines the stack size of the complete Glulx module.
+
+  export <name>
+
+    Specifies that label :<name> must be exported as a symbol.
+
+  import <name>
+
+    Ignored. (Supported for symmetry with the export directive, but the
+    assembler automatically imports a symbol when a label is referenced but not
+    defined.)
+
+  func_stack <name> <narg>
+  func_local <name> <narg>
+
+    Emit a function signature of type C0 or C1 (respectively) which name <name>
+    taking <narg> 32-bit arguments. The current section is split into separate
+    sections (so relative label references cannot cross these directives). The
+    purpose of this is to allow unused functions to be dropped by the linker.

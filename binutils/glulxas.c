@@ -26,13 +26,17 @@ static struct labelref *globalrefs;
 
 /* For assembling sections: */
 static enum secttype cur_secttype = SECTION_INVALID;
-static uint npiece;
-static struct piece *pieces;
-static uint ndef;
-static struct localdef { char *label; uint piece; } *defs;
+struct partial_section {
+    uint npiece;
+    struct piece *pieces;
+    uint ndef;
+    struct localdef { char *label; uint piece; } *defs;
+} partial_sections[SECTION_BSS + 1], *sec = NULL;
 
 #define resize(elem, new_size) \
     do_resize((void**)&elem##s, &n##elem, sizeof(*elem##s), new_size)
+#define sec_resize(elem, new_size) \
+    do_resize((void**)&sec->elem##s, &sec->n##elem, sizeof(*sec->elem##s), new_size)
 
 /* Returns the smallest power-of-two no smaller than `size'. */
 static uint cap(uint size)
@@ -198,11 +202,11 @@ int branch_address(const struct piece *p, const struct piece *q, int adjust)
 const struct piece *label_to_piece(const char *label)
 {
     uint n;
-    for (n = 0; n < ndef; ++n)
+    for (n = 0; n < sec->ndef; ++n)
     {
-        if (strcmp(defs[n].label, label) == 0)
+        if (strcmp(sec->defs[n].label, label) == 0)
         {
-            return &pieces[defs[n].piece];
+            return &sec->pieces[sec->defs[n].piece];
         }
     }
     return NULL;
@@ -249,9 +253,9 @@ void def_export(const char *label)
 /* Define a section-local label */
 void def_label(const char *label)
 {
-    resize(def, ndef + 1);
-    defs[ndef - 1].label = strdup(label);
-    defs[ndef - 1].piece = npiece;
+    sec_resize(def, sec->ndef + 1);
+    sec->defs[sec->ndef - 1].label = strdup(label);
+    sec->defs[sec->ndef - 1].piece = sec->npiece;
 }
 
 /* Allocates the binary data representation of a piece. */
@@ -390,27 +394,29 @@ void end_section()
 
     if (cur_secttype == SECTION_INVALID) fatal("no section declared");
 
+    assert(sec->npiece > 0);
+
     /* Pass 1: find (worst-case) sizes and initial offsets of instructions  */
     offset = 0;
-    for (n = 0; n < npiece; ++n)
+    for (n = 0; n < sec->npiece; ++n)
     {
-        if (pieces[n].i != NULL) set_operand_sizes(pieces[n].i);
-        pieces[n].offset = offset;
-        pieces[n].size   = piece_size(&pieces[n]);
-        offset += pieces[n].size;
+        if (sec->pieces[n].i != NULL) set_operand_sizes(sec->pieces[n].i);
+        sec->pieces[n].offset = offset;
+        sec->pieces[n].size   = piece_size(&sec->pieces[n]);
+        offset += sec->pieces[n].size;
     }
 
     /* Pass 2: resolve relative addresses (used in branches) and update
                the size of applicable operands */
-    for (n = 0; n < npiece; ++n)
+    for (n = 0; n < sec->npiece; ++n)
     {
-        if (pieces[n].i != NULL)
+        if (sec->pieces[n].i != NULL)
         {
-            const char *params = pieces[n].i->o->parameters;
+            const char *params = sec->pieces[n].i->o->parameters;
             uint p, nparam = strlen(params);
             for (p = 0; p < nparam; ++p)
             {
-                struct operand *oper = &pieces[n].i->opers[p];
+                struct operand *oper = &sec->pieces[n].i->opers[p];
                 oper->ref = NULL;
                 if (params[p] != 'b') continue;
                 if (oper->type != OPER_CONST)
@@ -424,38 +430,39 @@ void end_section()
                     continue;
                 }
                 oper->ref = label_to_piece(oper->value.label);
-                if (oper->ref == NULL) fatal("couldn't resolve branch operand");
+                if (oper->ref == NULL)
+                    fatal("couldn't resolve branch to %s", oper->value.label);
 
                 oper->size = sint_size(branch_address(
-                    &pieces[n], oper->ref, oper->value.adjust ));
+                    &sec->pieces[n], oper->ref, oper->value.adjust ));
             }
         }
     }
 
     /* Pass 3: update to final offsets and sizes */
     offset = 0;
-    for (n = 0; n < npiece; ++n)
+    for (n = 0; n < sec->npiece; ++n)
     {
-        pieces[n].offset = offset;
-        pieces[n].size   = piece_size(&pieces[n]);
-        offset += pieces[n].size;
+        sec->pieces[n].offset = offset;
+        sec->pieces[n].size   = piece_size(&sec->pieces[n]);
+        offset += sec->pieces[n].size;
     }
 
     /* Pass 4: sizes, offsets and operand sizes are known; encode data */
-    for (n = 0; n < npiece; ++n)
-        set_piece_data(&pieces[n]);
+    for (n = 0; n < sec->npiece; ++n)
+        set_piece_data(&sec->pieces[n]);
 
     /* Move local label definitions over to global list */
-    resize(globaldef, nglobaldef + ndef);
-    for (n = 0; n < ndef; ++n)
+    resize(globaldef, nglobaldef + sec->ndef);
+    for (n = 0; n < sec->ndef; ++n)
     {
-        struct labeldef *def = &globaldefs[nglobaldef - ndef + n];
-        def->label   = defs[n].label;
+        struct labeldef *def = &globaldefs[nglobaldef - sec->ndef + n];
+        def->label   = sec->defs[n].label;
         def->section = nsection;
-        def->offset  = pieces[defs[n].piece].offset;
+        def->offset  = sec->pieces[sec->defs[n].piece].offset;
     }
-    ndef = 0;
-    defs = NULL;
+    sec->ndef = 0;
+    sec->defs = NULL;
 
     /* Create new section */
     resize(section, nsection + 1);
@@ -471,22 +478,27 @@ void end_section()
         section->data = malloc(offset);
         memset(section->data, 0, section->size);
         assert(section->data != 0);
-        for (n = 0; n < npiece; ++n)
+        for (n = 0; n < sec->npiece; ++n)
         {
-            memcpy(section->data + pieces[n].offset,
-                   pieces[n].data, pieces[n].size);
+            memcpy(section->data + sec->pieces[n].offset,
+                   sec->pieces[n].data, sec->pieces[n].size);
         }
     }
 
     /* Clear for next section */
-    cur_secttype = SECTION_INVALID;
-    resize(piece, 0);
+    sec_resize(piece, 0);
 }
 
-void begin_section(enum secttype secttype)
+void set_section(enum secttype secttype)
 {
-    if (npiece != 0) end_section();
     cur_secttype = secttype;
+    assert(secttype >= SECTION_CODE && secttype <= SECTION_BSS);
+    sec = &partial_sections[secttype];
+}
+
+void split_section()
+{
+    if (sec->npiece != 0) end_section();
 }
 
 static void *dup_data(const void *data, size_t size)
@@ -515,12 +527,14 @@ static void add_piece( const struct instruction *i,
                        const struct literal *l,
                        uint size, char *data )
 {
-    resize(piece, npiece + 1);
-    pieces[npiece - 1].i      = dup_instruction(i);
-    pieces[npiece - 1].l      = dup_literal(l);
-    pieces[npiece - 1].offset = (uint)-1;
-    pieces[npiece - 1].size   = size;
-    pieces[npiece - 1].data   = dup_data(data, size);
+    struct piece *p;
+    sec_resize(piece, sec->npiece + 1);
+    p = &sec->pieces[sec->npiece - 1];
+    p->i      = dup_instruction(i);
+    p->l      = dup_literal(l);
+    p->offset = (uint)-1;
+    p->size   = size;
+    p->data   = dup_data(data, size);
 }
 
 void emit_blank(uint count)
@@ -826,6 +840,16 @@ static void write_object_path(const char *path)
     fclose(fp);
 }
 
+static void end_all_sections()
+{
+    int n;
+    for (n = SECTION_CODE; n <= SECTION_BSS; ++n)
+    {
+        set_section(n);
+        if (sec->npiece != 0) end_section();
+    }
+}
+
 int main(int argc, char *argv[])
 {
     if (argc > 3)
@@ -843,7 +867,7 @@ int main(int argc, char *argv[])
 
     /* Parse input */
     (void)yyparse();
-    if (npiece != 0) end_section();
+    end_all_sections();
 
     /* Process parsed data */
     sort_exports();

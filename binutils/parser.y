@@ -15,6 +15,7 @@ static struct literal cur_lit;
 static struct instruction cur_instr;
 static int cur_oper_index = 0;
 static struct operand cur_oper;
+static char *cur_name;
 
 void yyerror(const char *str)
 {
@@ -25,6 +26,22 @@ void yyerror(const char *str)
 int yywrap()
 {
     return 1;
+}
+
+static void parse_name()
+{
+    const char *s = yytext;
+    while (*s != '\0' && !isspace(*s)) ++s;
+    while (*s != '\0' &&  isspace(*s)) ++s;
+    assert(*s != '\0');
+    assert(cur_name == NULL);
+    cur_name = strdup(s);
+}
+
+static void free_name()
+{
+    free(cur_name);
+    cur_name = NULL;
 }
 
 static char *parse_labeldef(const char *s)
@@ -90,7 +107,7 @@ static void emit_string(const char *str)
 {
     size_t i, n = strlen(str);
     assert(str[0] == '"' && str[n - 1] == '"');
-    cur_lit.label = NULL;
+    cur_lit.label  = NULL;
     cur_lit.adjust = 0xe0;
     emit_data(&cur_lit, SIZE_BYTE);
     for (i = 1; i < n - 1; ++i)
@@ -112,11 +129,31 @@ static void emit_string(const char *str)
     }
 }
 
+static void func_header(const char *name, int type, int narg)
+{
+    split_section();
+    def_label(name);
+    cur_lit.label  = NULL;
+    cur_lit.adjust = type;
+    emit_data(&cur_lit, SIZE_BYTE);
+    assert(narg >= 0);
+    while (narg > 0)
+    {
+        int n = narg > 255 ? 255 : narg;
+        cur_lit.adjust = 0x0400 | n;
+        narg -= n;
+        emit_data(&cur_lit, SIZE_SHORT);
+    }
+    cur_lit.adjust = 0;
+    emit_data(&cur_lit, SIZE_SHORT);
+}
+
 %}
 
 %token ERROR
 %token SECTION CODE DATA VCODE VDATA BSS
 %token STACK EXT EXPORT IMPORT
+%token FUNC_STACK FUNC_LOCAL
 %token LABELDEF LABELREF
 %token OPCODE
 %token DC DS SZB SZS SZL
@@ -136,20 +173,24 @@ statements : statements statement
 statement : section_stmt
           | export_stmt
           | import_stmt
+          | func_stmt
           | optlabeldefs data_stmt
           | optlabeldefs code_stmt
           | STACK INT { set_stack_size(atoi(yytext)); }
           | EXT INT   { set_ext_size(atoi(yytext)); }
           ;
 
-export_stmt : EXPORT { const char *s = yytext;
-                       while (!isspace(*s)) ++s;
-                       while ( isspace(*s)) ++s;
-                       def_export(s); }
+export_stmt : EXPORT { parse_name(yytext); def_export(cur_name); free_name(); }
             ;
 
 import_stmt : IMPORT { fprintf(stderr, "WARNING: import statement ignored "
                                        "on line %d\n", lineno); }
+            ;
+
+func_stmt   : FUNC_STACK { parse_name(); }
+              INT { func_header(cur_name, 0xc0, atoi(yytext)); free_name(); }
+            | FUNC_LOCAL { parse_name(); }
+              INT { func_header(cur_name, 0xc1, atoi(yytext)); free_name(); }
             ;
 
 optlabeldefs : optlabeldefs LABELDEF
@@ -200,9 +241,9 @@ int_literal
         : INT { cur_lit.label = NULL; sscanf(yytext, "%i", &cur_lit.adjust); } optszpf
         ;
 
-section_stmt : SECTION CODE  { begin_section(SECTION_CODE); }
-             | SECTION DATA  { begin_section(SECTION_DATA); }
-             | SECTION VCODE { begin_section(SECTION_VCODE); }
-             | SECTION VDATA { begin_section(SECTION_VDATA); }
-             | SECTION BSS   { begin_section(SECTION_BSS); }
+section_stmt : SECTION CODE  { set_section(SECTION_CODE); }
+             | SECTION DATA  { set_section(SECTION_DATA); }
+             | SECTION VCODE { set_section(SECTION_VCODE); }
+             | SECTION VDATA { set_section(SECTION_VDATA); }
+             | SECTION BSS   { set_section(SECTION_BSS); }
              ;

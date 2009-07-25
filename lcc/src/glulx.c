@@ -3,9 +3,6 @@
 #include "c.h"
 #define X(f) glulx_##f
 
-static int cur_seg;
-static Symbol cur_func;
-
 /* Used when emiting a function (and reset for each function): */
 static int params_size;     /* size of formal parameter area */
 static int locals_size;     /* size of locals area */
@@ -19,8 +16,7 @@ static void X(blockend)(Env *e) { (void)e;  /* unused */ }
 
 static void X(defaddress)(Symbol p)
 {
-    assert(p->scope == GLOBAL);
-    print("\t\tdc.l :%s\n", p->name);
+    print("\tdc.l :%s\n", p->name);
 }
 
 static void X(defconst)(int suffix, int size, Value v)
@@ -30,24 +26,24 @@ static void X(defconst)(int suffix, int size, Value v)
     case I:  /* signed integer */
         switch (size)
         {
-        case 1: print("\t\tdc.b %d\n", (signed char)v.i);  return;
-        case 2: print("\t\tdc.s %d\n", (signed short)v.i); return;
-        case 4: print("\t\tdc.l %d\n", v.i);               return;
+        case 1: print("\tdc.b %d\n", (signed char)v.i);  return;
+        case 2: print("\tdc.s %d\n", (signed short)v.i); return;
+        case 4: print("\tdc.l %d\n", v.i);               return;
         }
 
         break;
     case U:  /* unsigned integer */
         switch (size)
         {
-        case 1: print("\t\tdc.b %u\n", (unsigned char)v.u);  return;
-        case 2: print("\t\tdc.s %u\n", (unsigned short)v.u); return;
-        case 4: print("\t\tdc.l %u\n", v.u);                 return;
+        case 1: print("\tdc.b %u\n", (unsigned char)v.u);  return;
+        case 2: print("\tdc.s %u\n", (unsigned short)v.u); return;
+        case 4: print("\tdc.l %u\n", v.u);                 return;
         }
 
     case P:  /* pointer */
         switch (size)
         {
-        case 4: print("\t\tdc.l %p\n", (unsigned)(unsigned long)v.p); return;
+        case 4: print("\tdc.l %p\n", (unsigned)(unsigned long)v.p); return;
         }
     }
 
@@ -59,7 +55,7 @@ static void X(defstring)(int n, char *s)
     int i;
     while (n > 0)
     {
-        print("\t\tdc.b");
+        print("\tdc.b");
         for (i = 0; i < 8 && i < n; ++i)
         {
             print(" %d", (int)s[i]);
@@ -74,7 +70,7 @@ static void X(space)(int n)
 {
     /* NOTE: space() should allocate  zero bytes; we can use a block of
              unitialized data here because Glulx will initialize it to zero. */
-    print("\t\tds.b %u\n", n);
+    print("\tds.b %u\n", n);
 }
 
 /* No implementation necessary: */
@@ -83,12 +79,12 @@ static void X(import)(Symbol p)    { (void)p;  /* unused */ }
 
 static void X(export)(Symbol p)
 {
-    print("\texport %s\n", p->name);
+    print("export %s\n", p->name);
 }
 
 static void X(global)(Symbol p)
 {
-    print("\t:%s\n", p->name);
+    print(":%s\n", p->name);
 }
 
 static void X(local)(Symbol p)
@@ -103,26 +99,20 @@ static void X(address)(Symbol p, Symbol q, long n)
     p->name = (n == 0) ? string(q->name) : stringf("%s:%D", q->name, n);
 }
 
-static void print_section()
+static void X(segment)(int seg)
 {
-    switch (cur_seg)
+    switch (seg)
     {
     case CODE: print("section code\n");  break;
     case LIT:  print("section data\n");  break;
     case DATA: print("section vdata\n"); break;
     case BSS:  print("section bss\n");   break;
+    default: assert(0);
     }
-}
-
-static void X(segment)(int seg)
-{
-    cur_seg = seg;
-    if (seg != CODE) print_section();
 }
 
 static void X(function)(Symbol f, Symbol caller[], Symbol callee[], int ncalls)
 {
-    cur_func = f;
     params_size  = 0;
     locals_size  = 0;
     staging_size = 0;
@@ -146,10 +136,8 @@ static void X(function)(Symbol f, Symbol caller[], Symbol callee[], int ncalls)
     gencode(caller, callee);
 
     /* Emit prologue */
-    print_section();
-    print("\t:%s\n", f->name);
-    print("\t\tdc.b 0xc1 4 2 0 0\n");
-    print("\t\tadd {0} %d {4}\n", locals_size + staging_size);
+    print("func_local %s 2\n", f->name);
+    print("\tadd {0} %d {4}\n", locals_size + staging_size);
 
     /* Caller passes BP in loc(0), callee computes SP in loc(1)
 
@@ -182,7 +170,7 @@ static void X(function)(Symbol f, Symbol caller[], Symbol callee[], int ncalls)
     emitcode();
 
     /* Emit epilogue */
-    print("\t\treturn 0\n\n");
+    print("\treturn 0\n\n");
 }
 
 static void gen_visit(Node p)
@@ -227,7 +215,7 @@ static void eval_call(Node p, int keep_result)
     assert(generic(p->op) == CALL);
     assert(p->kids[0]->op == ADDRG + P + sizeop(4));
     assert(p->kids[0]->syms[0]->scope == GLOBAL);
-    print("\t\tcallfi :%s {4} %s\n",
+    print("\tcallfi :%s {4} %s\n",
             p->kids[0]->syms[0]->name, keep_result ? "(sp)" : "~" );
 }
 
@@ -240,17 +228,17 @@ static void eval_to_stack(Node p)
         break;
 
     case ADDRG:  /* address of global variable */
-        print("\t\tcopy :%s (sp)  ; global %s\n",
+        print("\tcopy :%s (sp)  ; global %s\n",
               p->syms[0]->name, p->syms[0]->name);
         break;
 
     case ADDRF:  /* address of argument (formal parameter) */
-        print("\t\tadd {0} %d (sp)  ; param %s\n",
+        print("\tadd {0} %d (sp)  ; param %s\n",
               p->syms[0]->x.offset, p->syms[0]->name);
         break;
 
     case ADDRL:  /* address of local variable */
-        print("\t\tadd {0} %d (sp)  ; local %s\n",
+        print("\tadd {0} %d (sp)  ; local %s\n",
               p->syms[0]->x.offset, p->syms[0]->name);
         break;
 
@@ -259,23 +247,23 @@ static void eval_to_stack(Node p)
         switch (p->op)
         {
         case INDIR + I + sizeop(1):
-            print("\t\taloadb (sp) 0 (sp)\n"
-                  "\t\tsexb (sp) (sp)\n");
+            print("\taloadb (sp) 0 (sp)\n"
+                  "\tsexb (sp) (sp)\n");
             break;
         case INDIR + I + sizeop(2):
-            print("\t\taloads (sp) 0 (sp)\n"
-                  "\t\tsexs (sp) (sp)\n");
+            print("\taloads (sp) 0 (sp)\n"
+                  "\tsexs (sp) (sp)\n");
             break;
         case INDIR + U + sizeop(1):
-            print("\t\taloadb (sp) 0 (sp)\n");
+            print("\taloadb (sp) 0 (sp)\n");
             break;
         case INDIR + U + sizeop(2):
-            print("\t\taloads (sp) 0 (sp)\n");
+            print("\taloads (sp) 0 (sp)\n");
             break;
         case INDIR + I + sizeop(4):
         case INDIR + U + sizeop(4):
         case INDIR + P + sizeop(4):
-            print("\t\taload (sp) 0 (sp)\n");
+            print("\taload (sp) 0 (sp)\n");
             break;
         default:
             assert(0);
@@ -288,13 +276,13 @@ static void eval_to_stack(Node p)
         case CNST + I + sizeop(1):
         case CNST + I + sizeop(2):
         case CNST + I + sizeop(4):
-            print("\t\tcopy %d (sp)\n", (int)p->syms[0]->u.c.v.i);
+            print("\tcopy %d (sp)\n", (int)p->syms[0]->u.c.v.i);
             break;
         case CNST + U + sizeop(1):
         case CNST + U + sizeop(2):
         case CNST + U + sizeop(4):
         case CNST + P + sizeop(4):
-            print("\t\tcopy %u (sp)\n", (unsigned)p->syms[0]->u.c.v.u);
+            print("\tcopy %u (sp)\n", (unsigned)p->syms[0]->u.c.v.u);
             break;
         default: assert(0);
         }
@@ -314,16 +302,16 @@ static void eval_to_stack(Node p)
             switch (opkind(p->op))
             {
             case I + sizeop(1):
-                print("\t\tsexb (sp) (sp)\n");
+                print("\tsexb (sp) (sp)\n");
                 break;
             case U + sizeop(1):
-                print("\t\tbitand (sp) 0xff (sp)\n");
+                print("\tbitand (sp) 0xff (sp)\n");
                 break;
             case I + sizeop(2):
-                print("\t\tsexs (sp) (sp)\n");
+                print("\tsexs (sp) (sp)\n");
                 break;
             case U + sizeop(2):
-                print("\t\tbitand (sp) 0xffff (sp)\n");
+                print("\tbitand (sp) 0xffff (sp)\n");
                 break;
             case I + sizeop(4):
             case U + sizeop(4):
@@ -347,7 +335,7 @@ static void eval_to_stack(Node p)
             }
             assert(op != NULL);
             eval_to_stack(p->kids[0]);
-            print("\t\t%s (sp) (sp)\n", op);
+            print("\t%s (sp) (sp)\n", op);
         } break;
 
     case ADD:
@@ -375,12 +363,12 @@ static void eval_to_stack(Node p)
             case BOR:  op = "bitor"; break;
             case BXOR: op = "bitxor"; break;
             case LSH:  op = "shiftl"; break;
-            case RSH:  op = optype(p->op) == I ? "sshifr" : "ushiftr"; break;
+            case RSH:  op = optype(p->op) == I ? "sshiftr" : "ushiftr"; break;
             }
             assert(op != NULL);
             eval_to_stack(p->kids[1]);
             eval_to_stack(p->kids[0]);
-            print("\t\t%s (sp) (sp) (sp)\n", op);
+            print("\t%s (sp) (sp) (sp)\n", op);
         } break;
 
     default: assert(0);
@@ -401,7 +389,7 @@ static void X(emit)(Node p)
             assert(opsize(p->op) == 4);
             assert(p->x.argno > 0);
             eval_to_stack(p->kids[0]);
-            print("\t\tastore {4} %d (sp)\n", -p->x.argno);
+            print("\tastore {4} %d (sp)\n", -p->x.argno);
             break;
 
         case ASGN:
@@ -412,16 +400,16 @@ static void X(emit)(Node p)
                 {
                 case ASGN + I + sizeop(1):
                 case ASGN + U + sizeop(1):
-                    print("\t\tastoreb (sp) 0 (sp)\n");
+                    print("\tastoreb (sp) 0 (sp)\n");
                     break;
                 case ASGN + I + sizeop(2):
                 case ASGN + U + sizeop(2):
-                    print("\t\tastores (sp) 0 (sp)\n");
+                    print("\tastores (sp) 0 (sp)\n");
                     break;
                 case ASGN + I + sizeop(4):
                 case ASGN + U + sizeop(4):
                 case ASGN + P + sizeop(4):
-                    print("\t\tastore (sp) 0 (sp)\n");
+                    print("\tastore (sp) 0 (sp)\n");
                     break;
 
                 case ASGN + B:
@@ -435,12 +423,20 @@ static void X(emit)(Node p)
             } break;
 
         case JUMP:
-            assert(p->kids[0]->op == ADDRG + P + sizeop(4));
-            print("\t\tjump :%s\n", p->kids[0]->syms[0]->name);
+            if (p->kids[0]->op == ADDRG + P + sizeop(4))
+            {
+                print("\tjump :%s\n", p->kids[0]->syms[0]->name);
+            }
+            else
+            {
+                assert(p->kids[0]->op == INDIR + P + sizeop(4));
+                eval_to_stack(p->kids[0]);
+                print("\tjumpabs (sp)\n");
+            }
             break;
 
         case LABEL:
-            print("\t:%s\n", p->syms[0]->name);
+            print(":%s\n", p->syms[0]->name);
             break;
 
         case EQ:
@@ -477,12 +473,12 @@ static void X(emit)(Node p)
                 assert(op != NULL);
                 assert(p->syms[0]->scope == LABELS);
 
-                print("\t\t%s (sp) (sp) :%s\n", op, p->syms[0]->name);
+                print("\t%s (sp) (sp) :%s\n", op, p->syms[0]->name);
             } break;
 
         case RET:
             eval_to_stack(p->kids[0]);
-            print("\t\treturn (sp)\n");
+            print("\treturn (sp)\n");
             break;
 
         default:
