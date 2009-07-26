@@ -216,7 +216,16 @@ int vsprintf(char *str, const char *format, va_list ap)
 
 int vsnprintf(char *str, size_t size, const char *format, va_list ap)
 {
-    /* TODO: implement this by opening a Glk memory stream, then writing to
-             it with vfprintf */
-    return 0;
+    int res;
+    FILE *fp;
+    fp = glk_stream_open_memory(str, size, filemode_Write, 0);
+    if (fp == NULL) return -1;
+    res = vfprintf(fp, format, ap);
+    glk_stream_close(fp, NULL);
+    if (res < size)
+        str[res] = '\0';
+    else
+    if (size > 0)
+        str[size - 1] = '\0';
+    return res;
 }

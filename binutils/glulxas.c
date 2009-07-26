@@ -253,6 +253,7 @@ void def_export(const char *label)
 /* Define a section-local label */
 void def_label(const char *label)
 {
+    assert(sec != NULL);
     sec_resize(def, sec->ndef + 1);
     sec->defs[sec->ndef - 1].label = strdup(label);
     sec->defs[sec->ndef - 1].piece = sec->npiece;

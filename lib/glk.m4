@@ -3,9 +3,9 @@ dnl through the Glulx glk opcode. Each function stub copies its arguments from
 dnl the C call stack to the Glx stack and then executes a glk instruction with
 dnl the approriate selector.
 dnl
-define(`fst', `substr(`$1', 0, 1)')dnl
-define(`lst', `substr(`$1', eval(len(`$1') - 1))')dnl
-define(`narg', `eval(fst(`$1') - ifelse(lst(`$1'), `:', 0, 1))')dnl
+define(`filtertypes', `patsubst(patsubst(patsubst(`$1',
+                       `:.*$', `'), `\[[^]]*\]', `X'), `[^[A-Z#]', `')')dnl
+define(`narg', `len(filtertypes(`$1'))')
 define(`stub', `dnl
 export glk_`$2'
 func_local glk_`$2' 1
