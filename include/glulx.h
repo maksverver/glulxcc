@@ -17,10 +17,38 @@
 #define glulx_Acceleration     9
 #define glulx_AccelFunc       10
 
-void glulx_quit();
-void glulx_debugtrap(int val);
-int glulx_random(int range);
-void glulx_setrandom(unsigned seed);
-int glulx_gestalt(int selector, int argument);
+union glulx_TypeId
+{
+    char c[4];
+    unsigned u;
+};
+
+struct glulx_Version
+{
+    unsigned major : 16, minor : 8, revision : 8;
+};
+
+struct glulx_Header
+{
+    union glulx_TypeId      magic;
+    struct glulx_Version    version;
+    unsigned                ramstart;
+    unsigned                extstart;
+    unsigned                endmem;
+    unsigned                stack_size;
+    unsigned                start_func;
+    unsigned                decoding_tbl;
+    unsigned                checksum;
+};
+
+extern const struct glulx_Header * const glulx_header;
+
+extern void glulx_quit(void);
+extern void glulx_debugtrap(int val);
+extern int glulx_random(int range);
+extern void glulx_setrandom(unsigned seed);
+extern int glulx_gestalt(int selector, int argument);
+extern unsigned glulx_getmemsize(void);
+extern int glulx_setmemsize(unsigned size);
 
 #endif /* ndef GLULX_H_INCLUDED */

@@ -1,0 +1,49 @@
+section code
+
+; fputs(strid_t *stream, const char *s)
+; Writes s to stream and returns the length of s.
+export fputs
+func_local fputs 5
+	; locals:
+	;  {0} base ptr
+	;  {4} s
+	;  {8} stream
+	; {12} i
+	; {16} s[i]
+	aload {0} -1 {4}
+	aload {0} -2 {8}
+	copy 0 {12}
+:fputs_loop
+	aloadb {4} {12} {16}
+	jz {16} :fputs_end
+	copy {16} (sp)
+	copy  {8} (sp)
+	glk 0x0081 2 ~  ; glk_put_char_stream
+	add {12} 1 {12}
+	jump :fputs_loop
+:fputs_end
+	return {12}
+	
+; puts(const char *s)
+; Writes s + "\n" to the current stream and returns the length of s + 1.
+export puts
+func_local puts 4
+	; locals:
+	;  {0} base ptr
+	;  {4} s
+	;  {8} i
+	; {12} s[i]
+	aload {0} -1 {4}
+	copy 0 {8}
+:puts_loop
+	aloadb {4} {8} {12}
+	jz {12} :puts_end
+	copy {12} (sp)
+	glk 0x0080 1 ~  ; glk_put_char
+	add {8} 1 {8}
+	jump :puts_loop
+:puts_end
+	copy 10 (sp)
+	glk 0x0080 1 ~  ; glk_put_char
+	add {8} 1 {8}
+	return {8}

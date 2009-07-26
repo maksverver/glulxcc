@@ -1,6 +1,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "stdarg.h"
+#include "glulx.h"
 
 /* Defined in instr.c */
 extern const char *itostr(int i);       /* integer to decimal string */
@@ -9,64 +10,25 @@ extern const char *utostr(unsigned u);  /* unsigned to decimal string */
 extern const char *xtostr(unsigned u);  /* unsigned to lowercase hex. string */
 extern const char *Xtostr(unsigned u);  /* unsigned to uppercase hex. string */
 
-
-static int write(const char *s)
-{
-    int written = 0;
-    if (s != NULL)
-    {
-        while (*s)
-        {
-            putchar(*s++);
-            ++written;
-        }
-    }
-    return written;
-}
-
 /* Writes `len' padding characters and returns the number of characters written;
    note that `len' may be negative, nothing is written and 0 is returned. */
-static int write_padding(int len, int ch)
+static int write_padding(FILE *stream, int len, int ch)
 {
     int i;
-    for (i = 0; i < len; ++i) putchar(ch);
+    for (i = 0; i < len; ++i) fputc(ch, stream);
     return i;
 }
 
-static int writepad(const char *s, int padto, int padch)
-{
-    if (padto == 0)
-        return write(s);
-    else
-    if (padto > 0)
-        return write_padding(padto - strlen(s), padch) + write(s);
-    else  /* padto < 0 */
-        return write(s) + write_padding(-padto - strlen(s), padch);
-}
-
-int putchar(int c)
-{
-    glk_put_char(c);
-    return c;
-}
-
-int puts(const char *s)
-{
-    int n = write(s);
-    putchar('\n');
-    return n + 1;
-}
-
-int printf(const char *fmt, ...)
+/* Writes formatted data to a stream and returns the number of bytes that
+   would be written. (No checks for failure occur.) */
+int vfprintf(FILE *fp, const char *fmt, va_list ap)
 {
     int written = 0;
-    va_list ap;
-    va_start(ap, fmt);
     for ( ; *fmt; ++fmt)
     {
         if (*fmt != '%')
         {
-            putchar(*fmt);
+            putc(*fmt, fp);
             ++written;
         }
         else
@@ -75,6 +37,8 @@ int printf(const char *fmt, ...)
             int alt = 0, align = 0;
             int padto = 0;
             char padch = ' ';
+            const char *str_out = NULL;  /* string to write */
+            int out_len;
 
             ++fmt;  /* skip % */
 
@@ -120,57 +84,139 @@ int printf(const char *fmt, ...)
             switch (*fmt)
             {
             case '%':  /* literal percentage */
-                putchar('%');
+                /* write it here directly instead of doing str_out="%" to
+                   avoid padding: */
+                putc('%', fp);
                 ++written;
                 break;
 
             case 'd':  /* signed decimal */
             case 'i':
-                written += writepad(itostr(va_arg(ap, int)), padto, padch);
+                str_out = itostr(va_arg(ap, int));
                 break;
 
             case 'u':  /* unsigned decimal */
-                written += writepad(utostr(va_arg(ap, unsigned)), padto, padch);
+                str_out = utostr(va_arg(ap, unsigned));
                 break;
 
             case 'o':  /* unsigned octal */
-                {
-                    unsigned u = va_arg(ap, unsigned);
-                    if (alt && u != 0)
-                    {
-                        putchar('0');
-                        ++written;
-                    }
-                    written += writepad(otostr(u), padto, padch);
-                } break;
+                str_out = otostr(va_arg(ap, unsigned));
+                if (alt && *str_out != 0) *(char*)--str_out = '0';
+                break;
 
             case 'p':  /* unsigned pointer */
                 alt = 1;
                 /* falls through */
             case 'x':  /* unsigned lowercase hexadecimal */
-                if (alt) written += write("0x");
-                written += writepad(xtostr(va_arg(ap, unsigned)), padto, padch);
-                break;
-
             case 'X':  /* unsigned uppercase hexadecimal */
-                if (alt) written += write("0x");
-                written += writepad(Xtostr(va_arg(ap, unsigned)), padto, padch);
+                str_out = (*fmt == 'X') ? Xtostr(va_arg(ap, unsigned))
+                                        : xtostr(va_arg(ap, unsigned));
+                if (alt)
+                {
+                    *(char*)--str_out = 'x';
+                    *(char*)--str_out = '0';
+                }
                 break;
 
             case 'c':  /* single character */
-                putchar(va_arg(ap, int));
-                break;
+                {
+                    static char buf[2] = { '\0', '\0' };
+                    buf[0] = va_arg(ap, int);
+                    str_out = buf;
+                } break;
 
             case 's':  /* zero-terminated string */
-                written += writepad(va_arg(ap, const char*), padto, padch);
+                str_out = va_arg(ap, const char*);
                 break;
 
             default:  /* unrecognized option */
-                for ( ; start <= fmt; ++start) putchar(*start);
+                for ( ; start <= fmt; ++start)
+                {
+                    putc(*start, fp);
+                    ++written;
+                }
                 break;
+            }
+
+            if (str_out == NULL) continue;
+
+            /* Write string to output: */
+            out_len = (int)strlen(str_out);
+            written += out_len;
+            if (padto == 0)  /* no padding -- common case */
+            {
+                fputs(str_out, fp);
+            }
+            else
+            if (padto > 0)  /* right-align */
+            {
+                written += write_padding(fp, padto - out_len, padch);
+                fputs(str_out, fp);
+            }
+            else    /* padto < 0; left-align */
+            {
+                fputs(str_out, fp);
+                written += write_padding(fp, -padto - out_len, padch);
             }
         }
     }
-    va_end(ap);
     return written;
+}
+
+
+int printf(const char *format, ...)
+{
+    int res;
+    va_list ap;
+    va_start(ap, format);
+    res = vfprintf(stdout, format, ap);
+    va_end(ap);
+    return res;
+}
+
+int fprintf(FILE *stream, const char *format, ...)
+{
+    int res;
+    va_list ap;
+    va_start(ap, format);
+    res = vfprintf(stdout, format, ap);
+    va_end(ap);
+    return res;
+}
+
+int sprintf(char *str, const char *format, ...)
+{
+    int res;
+    va_list ap;
+    va_start(ap, format);
+    res = vsprintf(str, format, ap);
+    va_end(ap);
+    return res;
+}
+
+int snprintf(char *str, size_t size, const char *format, ...)
+{
+    int res;
+    va_list ap;
+    va_start(ap, format);
+    res = vsnprintf(str, size, format, ap);
+    va_end(ap);
+    return res;
+}
+
+int vprintf(const char *format, va_list ap)
+{
+    return vfprintf(stdout, format, ap);
+}
+
+int vsprintf(char *str, const char *format, va_list ap)
+{
+    return vsnprintf(str, glulx_getmemsize() - (unsigned)str, format, ap);
+}
+
+int vsnprintf(char *str, size_t size, const char *format, va_list ap)
+{
+    /* TODO: implement this by opening a Glk memory stream, then writing to
+             it with vfprintf */
+    return 0;
 }

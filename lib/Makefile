@@ -6,7 +6,7 @@ B=$(BUILDDIR)/
 O=.ulo
 
 OBJS=	$Bassert$O $Bcrtstart$O $Bctype$O $Bglulx$O $Bglk$O $Bintstr$O \
-	$Bprintf$O $Bstdlib$O $Bstring$O
+	$Bprintf$O $Bputs$O $Bstdlib$O $Bstring$O
 
 all: $Blibc.ulo
 
@@ -18,6 +18,7 @@ $Bglk.ula:	glk.m4;		m4 $< >$@
 $Bglk$O:	$Bglk.ula;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bintstr$O:	intstr.c;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bprintf$O:	printf.c;	$(CC) $(CFLAGS) -c -o $@ $<
+$Bputs$O:	puts.ula;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bstdlib$O:	stdlib.c;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bstring$O:	string.c;	$(CC) $(CFLAGS) -c -o $@ $<
 

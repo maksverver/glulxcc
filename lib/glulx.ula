@@ -1,3 +1,9 @@
+section data
+
+export glulx_header
+:glulx_header
+	dc.l 0
+
 section code
 
 export glulx_quit
@@ -29,4 +35,15 @@ func_local glulx_gestalt 1
 	aload {0} -2 (sp)
 	aload {0} -1 (sp)
 	gestalt (sp) (sp) (sp)
+	return (sp)
+
+export glulx_getmemsize
+func_local glulx_getmemsize 0
+	getmemsize (sp)
+	return (sp)
+
+export glulx_setmemsize
+func_local glulx_setmemsize 1
+	aload {0} -1 (sp)
+	setmemsize (sp) (sp)
 	return (sp)

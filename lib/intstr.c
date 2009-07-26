@@ -5,7 +5,10 @@
    whenever another libc function is called. */
 
 
-static char utox_buf[34];
+/* Note: printf.c abuses the fact that there is some free room in front of the
+         buffer returned to insert size prefixes (and itoa does this too to 
+         add a minus-sign) so this should not be made too small: */
+static char utox_buf[40];
 
 /* Note: these are defined as macros because Glulx doesn't have proper support
          for unsigned division; inlining this allows the compiler to implement
