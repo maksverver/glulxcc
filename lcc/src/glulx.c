@@ -97,6 +97,7 @@ static void X(local)(Symbol p)
 static void X(address)(Symbol p, Symbol q, long n)
 {
     p->name = (n == 0) ? string(q->name) : stringf("%s:%D", q->name, n);
+    p->x.offset = p->x.offset + n;
 }
 
 static void X(segment)(int seg)
@@ -407,31 +408,35 @@ static void X(emit)(Node p)
 
         case ASGN:
             {
-                eval_to_stack(p->kids[1]);  /* source value */
-                eval_to_stack(p->kids[0]);  /* destination address */
-                switch (p->op)
+                if (p->op == ASGN + B)
                 {
-                case ASGN + I + sizeop(1):
-                case ASGN + U + sizeop(1):
-                    print("\tastoreb (sp) 0 (sp)\n");
-                    break;
-                case ASGN + I + sizeop(2):
-                case ASGN + U + sizeop(2):
-                    print("\tastores (sp) 0 (sp)\n");
-                    break;
-                case ASGN + I + sizeop(4):
-                case ASGN + U + sizeop(4):
-                case ASGN + P + sizeop(4):
-                    print("\tastore (sp) 0 (sp)\n");
-                    break;
-
-                case ASGN + B:
-                    print("; TODO: struct assignment (size=%s)\n", p->syms[0]->name);
-                    assert(0);
-                    break;
-
-                default:
-                    assert(0);
+                    assert(p->kids[1]->op == INDIR + B);
+                    eval_to_stack(p->kids[0]);          /* destination address */
+                    eval_to_stack(p->kids[1]->kids[0]); /* source address */
+                    print("\tmcopy %d (sp) (sp)\n", p->syms[0]->u.c.v.i);
+                }
+                else
+                {
+                    eval_to_stack(p->kids[1]);  /* source value */
+                    eval_to_stack(p->kids[0]);  /* destination address */
+                    switch (p->op)
+                    {
+                    case ASGN + I + sizeop(1):
+                    case ASGN + U + sizeop(1):
+                        print("\tastoreb (sp) 0 (sp)\n");
+                        break;
+                    case ASGN + I + sizeop(2):
+                    case ASGN + U + sizeop(2):
+                        print("\tastores (sp) 0 (sp)\n");
+                        break;
+                    case ASGN + I + sizeop(4):
+                    case ASGN + U + sizeop(4):
+                    case ASGN + P + sizeop(4):
+                        print("\tastore (sp) 0 (sp)\n");
+                        break;
+                    default:
+                        assert(0);
+                    }
                 }
             } break;
 
