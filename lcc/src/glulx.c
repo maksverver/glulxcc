@@ -211,76 +211,88 @@ static Node X(gen)(Node start)
     return start;
 }
 
-static void eval_to_stack(Node p);
+/* Evaluate a node to a value that can be used as an operand in an instruction.
+   This may generate code to evaluate to the stack and then return (sp), or it
+   could return a constant or memory or local variable reference.
 
-static void eval_call(Node p, int keep_result)
+   NB. when this function is called to evaluate the arguments to another opcode,
+    order of evaluation matters! e.g. this is the correct:
+        arg2 = eval_value(p->kids[1]);
+        arg1 = eval_value(p->kids[0]);
+        print("add %s %s (sp)", arg1, arg2);
+    But this isn't:
+        arg1 = eval_value(p->kids[0]);
+        arg2 = eval_value(p->kids[1]);
+        print("add %s %s (sp)", arg1, arg2);
+    Since both arg1 and arg2 may return (sp) in which case arg2 should be popped
+    of the stack first. */
+static const char *eval_value(Node p);
+
+static const char *eval_call(Node p, int keep_result)
 {
     assert(generic(p->op) == CALL);
+    const char *dest = keep_result ? "(sp)" : "~";
     switch (p->kids[0]->op)
     {
     case ADDRG + P + sizeop(4):  /* call to label */
-        print("\tcallfi :%s {4} %s\n",
-                p->kids[0]->syms[0]->name, keep_result ? "(sp)" : "~" );
+        print("\tcallfi :%s {4} %s\n", p->kids[0]->syms[0]->name, dest);
         break;
 
     case INDIR + P + sizeop(4):  /* call through function pointer */
-        eval_to_stack(p->kids[0]);
-        print("\tcallfi (sp) {4} %s\n", keep_result ? "(sp)" : "~" );
+        print("\tcallfi %s {4} %s\n", eval_value(p->kids[0]), dest);
         break;
 
     default:
         assert(0);
     }
+    return keep_result ? "(sp)" : "0";
 }
 
-static void eval_to_stack(Node p)
+static const char *eval_value(Node p)
 {
+    const char *arg1, *arg2;
+
     switch (generic(p->op))
     {
     case CALL:
-        eval_call(p, 1);
-        break;
+        return eval_call(p, 1);
 
     case ADDRG:  /* address of global variable */
-        print("\tcopy :%s (sp)  ; global %s\n",
-              p->syms[0]->name, p->syms[0]->name);
-        break;
+        return stringf(":%s", p->syms[0]->name);
 
     case ADDRF:  /* address of argument (formal parameter) */
         print("\tadd {0} %d (sp)  ; param %s\n",
               p->syms[0]->x.offset, p->syms[0]->name);
-        break;
+        return "(sp)";
 
     case ADDRL:  /* address of local variable */
         print("\tadd {0} %d (sp)  ; local %s\n",
               p->syms[0]->x.offset, p->syms[0]->name);
-        break;
+        return "(sp)";
 
     case INDIR:  /* fetch value by address */
-        eval_to_stack(p->kids[0]);
+        arg1 = eval_value(p->kids[0]);
         switch (p->op)
         {
         case INDIR + I + sizeop(1):
-            print("\taloadb (sp) 0 (sp)\n"
-                  "\tsexb (sp) (sp)\n");
-            break;
+            print("\taloadb %s 0 (sp)\n"
+                  "\tsexb (sp) (sp)\n", arg1);
+            return "(sp)";
         case INDIR + I + sizeop(2):
-            print("\taloads (sp) 0 (sp)\n"
-                  "\tsexs (sp) (sp)\n");
-            break;
+            print("\taloads %s 0 (sp)\n"
+                  "\tsexs (sp) (sp)\n", arg1);
+            return "(sp)";
         case INDIR + U + sizeop(1):
-            print("\taloadb (sp) 0 (sp)\n");
-            break;
+            print("\taloadb %s 0 (sp)\n", arg1);
+            return "(sp)";
         case INDIR + U + sizeop(2):
-            print("\taloads (sp) 0 (sp)\n");
-            break;
+            print("\taloads %s 0 (sp)\n", arg1);
+            return "(sp)";
         case INDIR + I + sizeop(4):
         case INDIR + U + sizeop(4):
         case INDIR + P + sizeop(4):
-            print("\taload (sp) 0 (sp)\n");
-            break;
-        default:
-            assert(0);
+            print("\taload %s 0 (sp)\n", arg1);
+            return "(sp)";
         }
         break;
 
@@ -290,15 +302,12 @@ static void eval_to_stack(Node p)
         case CNST + I + sizeop(1):
         case CNST + I + sizeop(2):
         case CNST + I + sizeop(4):
-            print("\tcopy %d (sp)\n", (int)p->syms[0]->u.c.v.i);
-            break;
+            return stringf("%d", (int)p->syms[0]->u.c.v.i);
         case CNST + U + sizeop(1):
         case CNST + U + sizeop(2):
         case CNST + U + sizeop(4):
         case CNST + P + sizeop(4):
-            print("\tcopy %u (sp)\n", (unsigned)p->syms[0]->u.c.v.u);
-            break;
-        default: assert(0);
+            return stringf("%u", (unsigned)p->syms[0]->u.c.v.u);
         }
         break;
 
@@ -309,29 +318,26 @@ static void eval_to_stack(Node p)
     case CVU:  /* convert from unsigned integer */
     case CVP:  /* convert from pointer */
     case CVI:  /* convert from signed integer */
+        assert(optype(p->op) == I || optype(p->op) == U || optype(p->op) == P);
+        assert(opsize(p->op) == 4 || opsize(p->kids[0]->op) == 4);
+        arg1 = eval_value(p->kids[0]);
+        switch (opkind(p->op))
         {
-            assert(optype(p->op) == I || optype(p->op) == U || optype(p->op) == P);
-            assert(opsize(p->op) == 4 || opsize(p->kids[0]->op) == 4);
-            eval_to_stack(p->kids[0]);
-            switch (opkind(p->op))
-            {
-            case I + sizeop(1):
-                print("\tsexb (sp) (sp)\n");
-                break;
-            case U + sizeop(1):
-                print("\tbitand (sp) 0xff (sp)\n");
-                break;
-            case I + sizeop(2):
-                print("\tsexs (sp) (sp)\n");
-                break;
-            case U + sizeop(2):
-                print("\tbitand (sp) 0xffff (sp)\n");
-                break;
-            case I + sizeop(4):
-            case U + sizeop(4):
-                break;
-            default: assert(0);
-            }
+        case I + sizeop(1):
+            print("\tsexb %s (sp)\n", arg1);
+            return "(sp)";
+        case U + sizeop(1):
+            print("\tbitand %s 0xff (sp)\n", arg1);
+            return "(sp)";
+        case I + sizeop(2):
+            print("\tsexs %s (sp)\n", arg1);
+            return "(sp)";
+        case U + sizeop(2):
+            print("\tbitand %s 0xffff (sp)\n", arg1);
+            return "(sp)";
+        case I + sizeop(4):
+        case U + sizeop(4):
+            return arg1;
         }
         break;
 
@@ -348,9 +354,10 @@ static void eval_to_stack(Node p)
             case NEG:  op = "neg";    break;
             }
             assert(op != NULL);
-            eval_to_stack(p->kids[0]);
-            print("\t%s (sp) (sp)\n", op);
-        } break;
+            arg1 = eval_value(p->kids[0]);
+            print("\t%s %s (sp)\n", op, arg1);
+            return "(sp)";
+        }
 
     case ADD:
     case SUB:
@@ -380,13 +387,15 @@ static void eval_to_stack(Node p)
             case RSH:  op = optype(p->op) == I ? "sshiftr" : "ushiftr"; break;
             }
             assert(op != NULL);
-            eval_to_stack(p->kids[1]);
-            eval_to_stack(p->kids[0]);
-            print("\t%s (sp) (sp) (sp)\n", op);
-        } break;
-
-    default: assert(0);
+            arg2 = eval_value(p->kids[1]);
+            arg1 = eval_value(p->kids[0]);
+            print("\t%s %s %s (sp)\n", op, arg1, arg2);
+            return "(sp)";
+        }
     }
+
+    fprintf(stderr, "unhandled op: %#x\n", p->op);
+    assert(0);
 }
 
 static void X(emit)(Node p)
@@ -402,37 +411,37 @@ static void X(emit)(Node p)
         case ARG:
             assert(opsize(p->op) == 4);
             assert(p->x.argno > 0);
-            eval_to_stack(p->kids[0]);
-            print("\tastore {4} %d (sp)\n", -p->x.argno);
+            print("\tastore {4} %d %s\n", -p->x.argno, eval_value(p->kids[0]));
             break;
 
         case ASGN:
             {
+                const char *lhs, *rhs;
                 if (p->op == ASGN + B)
                 {
                     assert(p->kids[1]->op == INDIR + B);
-                    eval_to_stack(p->kids[0]);          /* destination address */
-                    eval_to_stack(p->kids[1]->kids[0]); /* source address */
-                    print("\tmcopy %d (sp) (sp)\n", p->syms[0]->u.c.v.i);
+                    lhs = eval_value(p->kids[0]);
+                    rhs = eval_value(p->kids[1]->kids[0]);
+                    print("\tmcopy %d %s %s\n", p->syms[0]->u.c.v.i, rhs, lhs);
                 }
                 else
                 {
-                    eval_to_stack(p->kids[1]);  /* source value */
-                    eval_to_stack(p->kids[0]);  /* destination address */
+                    rhs = eval_value(p->kids[1]);
+                    lhs = eval_value(p->kids[0]);
                     switch (p->op)
                     {
                     case ASGN + I + sizeop(1):
                     case ASGN + U + sizeop(1):
-                        print("\tastoreb (sp) 0 (sp)\n");
+                        print("\tastoreb %s 0 %s\n", lhs, rhs);
                         break;
                     case ASGN + I + sizeop(2):
                     case ASGN + U + sizeop(2):
-                        print("\tastores (sp) 0 (sp)\n");
+                        print("\tastores %s 0 %s\n", lhs, rhs);
                         break;
                     case ASGN + I + sizeop(4):
                     case ASGN + U + sizeop(4):
                     case ASGN + P + sizeop(4):
-                        print("\tastore (sp) 0 (sp)\n");
+                        print("\tastore %s 0 %s\n", lhs, rhs);
                         break;
                     default:
                         assert(0);
@@ -448,8 +457,7 @@ static void X(emit)(Node p)
             else
             {
                 assert(p->kids[0]->op == INDIR + P + sizeop(4));
-                eval_to_stack(p->kids[0]);
-                print("\tjumpabs (sp)\n");
+                print("\tjumpabs %s\n", eval_value(p->kids[0]));
             }
             break;
 
@@ -464,10 +472,7 @@ static void X(emit)(Node p)
         case LT:
         case NE:
             {
-                const char *op = NULL;
-
-                eval_to_stack(p->kids[1]);  /* second operand */
-                eval_to_stack(p->kids[0]);  /* first operand */
+                const char *op = NULL, *arg1, *arg2;
 
                 switch (p->op)
                 {
@@ -490,13 +495,13 @@ static void X(emit)(Node p)
 
                 assert(op != NULL);
                 assert(p->syms[0]->scope == LABELS);
-
-                print("\t%s (sp) (sp) :%s\n", op, p->syms[0]->name);
+                arg2 = eval_value(p->kids[1]);
+                arg1 = eval_value(p->kids[0]);
+                print("\t%s %s %s :%s\n", op, arg1, arg2, p->syms[0]->name);
             } break;
 
         case RET:
-            eval_to_stack(p->kids[0]);
-            print("\treturn (sp)\n");
+            print("\treturn %s\n", eval_value(p->kids[0]));
             break;
 
         default:
