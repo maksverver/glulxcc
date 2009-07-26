@@ -31,25 +31,28 @@ extern char *gets(char *s);
 #define getc(stream)        fgetc(stream)
 #define getchar()           getc(stream)
 
-/* printf (TODO) */
-int printf(const char *format, ...);
-int fprintf(FILE *stream, const char *format, ...);
-int sprintf(char *str, const char *format, ...);
-int snprintf(char *str, size_t size, const char *format, ...);
-int vprintf(const char *format, va_list ap);
-int vfprintf(FILE *stream, const char *format, va_list ap);
-int vsprintf(char *str, const char *format, va_list ap);
-int vsnprintf(char *str, size_t size, const char *format, va_list ap);
+/* printf */
+extern int printf(const char *format, ...);
+extern int fprintf(FILE *stream, const char *format, ...);
+extern int sprintf(char *str, const char *format, ...);
+extern int snprintf(char *str, size_t size, const char *format, ...);
+extern int vprintf(const char *format, va_list ap);
+extern int vfprintf(FILE *stream, const char *format, va_list ap);
+extern int vsprintf(char *str, const char *format, va_list ap);
+extern int vsnprintf(char *str, size_t size, const char *format, va_list ap);
 
-/* scanf (TODO) */
-int scanf(const char *format, ...);
-int fscanf(FILE *stream, const char *format, ...);
-int sscanf(const char *str, const char *format, ...);
-int vscanf(const char *format, va_list ap);
-int vsscanf(const char *str, const char *format, va_list ap);
-int vfscanf(FILE *stream, const char *format, va_list ap);
+/* scanf */
+/*
+extern int scanf(const char *format, ...);
+extern int fscanf(FILE *stream, const char *format, ...);
+extern int sscanf(const char *str, const char *format, ...);
+extern int vscanf(const char *format, va_list ap);
+extern int vsscanf(const char *str, const char *format, va_list ap);
+extern int vfscanf(FILE *stream, const char *format, va_list ap);
+*/
 
-/* File I/O (all TODO) */
+/* File I/O */
+/*
 extern FILE *fopen(const char *path, const char *mode);
 extern int fclose(FILE *fp);
 extern int fseek(FILE *stream, long offset, int whence);
@@ -62,5 +65,6 @@ extern void clearerr(FILE *stream);
 extern int feof(FILE *stream);
 extern int ferror(FILE *stream);
 extern int fileno(FILE *stream);
+*/
 
 #endif /* ndef STDIO_H_INCLUDED */
