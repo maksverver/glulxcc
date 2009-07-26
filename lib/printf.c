@@ -1,7 +1,6 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "stdarg.h"
-#include "intstr.h"
 
 /* Defined in instr.c */
 extern const char *itostr(int i);       /* integer to decimal string */
