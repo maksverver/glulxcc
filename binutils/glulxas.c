@@ -427,7 +427,8 @@ void end_section()
                 }
                 if (oper->value.label == NULL)
                 {
-                    warning("fixed branch operand specified");
+                    if ((oper->value.adjust&~1) != 0)
+                        warning("fixed branch operand specified");
                     continue;
                 }
                 oper->ref = label_to_piece(oper->value.label);

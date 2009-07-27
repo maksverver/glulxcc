@@ -97,7 +97,7 @@ static void X(local)(Symbol p)
 static void X(address)(Symbol p, Symbol q, long n)
 {
     p->name = (n == 0) ? string(q->name) : stringf("%s:%D", q->name, n);
-    p->x.offset = p->x.offset + n;
+    p->x.offset = q->x.offset + n;
 }
 
 static void X(segment)(int seg)
