@@ -1,0 +1,154 @@
+section code
+
+export memmove 
+func_local memmove 1  ; void *dest, const void *src, size_t n
+	aload {0} -1 (sp)  ; dest
+	aload {0} -2 (sp)  ; src
+	aload {0} -3 (sp)  ; n
+	mcopy (sp) (sp) (sp)  ; len src dest
+	return 0
+
+export memchr
+func_local memchr 1  ; const void *s, char c, size_t n
+	aload {0} -3 (sp)  ; n
+	aload {0} -1 (sp)  ; s
+	aload {0} -2 (sp)  ; c
+	linearsearch (sp) 1 (sp) 1 (sp) 0 0 (sp)
+	return (sp)
+
+export memcmp
+func_local memcmp 7  ; const void *s1, const void *s2, size_t n
+	aload {0} -1  {4}  ; s1
+	aload {0} -2  {8}  ; s2
+	aload {0} -3 {12}  ; n
+	bitand {12} 1 {16}
+	jz {16} :memcmp_multiple_of_2
+	aloadb {4} 0 {20}
+	aloadb {8} 0 {24}
+	jne {20} {24} :memcmp_diff
+	add {4} 1 {4}  ; s1 += 1
+	add {8} 1 {8}  ; s2 += 1
+:memcmp_multiple_of_2
+	bitand {12} 2 {16}
+	jz {16} :memcmp_multiple_of_4
+	aloads {4} 0 {20}
+	aloads {8} 0 {24}
+	jne {20} {24} :memcmp_diff
+	add {4} 2 {4}  ; s1 += 2
+	add {8} 2 {8}  ; s2 += 2
+:memcmp_multiple_of_4
+	copy 0 {16}          ; i = 0
+	ushiftr {12} 2 {12}  ; n /= 4
+	jz {12} 0
+:memcmp_loop
+	aload {4} {16} {20}  ; {20} = s1[i]
+	aload {8} {16} {24}  ; {24} = s2[i]
+	jne {20} {24} :memcmp_diff
+	add {16} 1 {16}      ; i++
+	jne {16} {12} :memcmp_loop
+	return 0
+:memcmp_diff
+	jgeu {20} {24} 1
+	return -1
+
+export memset
+func_local memset 5  ; void *s, int c, size_t n
+	aload {0} -1  {4}  ; s
+	aload {0} -2  {8}  ; c
+	aload {0} -3 {12}  ; n
+	jz {12} :memset_end
+	jz  {8} :memset_zero
+:memset_loop
+	astoreb {4} {16} {8}
+	add {16} 1 {16}
+	jne {16} {12} :memset_loop
+	jump :memset_end
+:memset_zero
+	mzero {12} {4}
+:memset_end
+	return {4}
+
+export strchr
+func_local strchr 1  ; const char *s, int c
+	aload {0} -1 (sp)  ; s
+	aload {0} -2 (sp)  ; c
+	linearsearch (sp) 1 (sp) 1 -1 0 2 (sp)
+	return (sp)
+
+export strcpy
+func_local strcpy 3  ; const char *dest, const char *src
+	aload {0} -1 {4}  ; dest
+	aload {0} -2 {8}  ; src
+	linearsearch 0 1 {8} 1 -1 0 4 (sp)  ; len src
+	add (sp) 1 (sp)
+	mcopy (sp) {8} {4}
+	return {4}
+
+export strcat
+func_local strcat 3  ; const char *dest, const char *src
+	aload {0} -1 {4}  ; dest
+	linearsearch 0 1 {4} 1 -1 0 0 {4}   ; {4} = dest + strlen(dest)
+	aload {0} -2 {8}  ; src
+	linearsearch 0 1 {8} 1 -1 0 4 (sp)  ; len src
+	add (sp) 1 (sp)
+	mcopy (sp) {8} {4}
+	return {4}
+
+export strncpy
+func_local strncpy 5  ; const char *dest, const char *src, size_t n
+	aload {0} -1  {4}  ; dest
+	aload {0} -2  {8}  ; src
+	aload {0} -3 {12}  ; n
+	linearsearch 0 1 {8} 1 -1 0 4 {16}  ; len src
+	jleu {16} {12} :strncpy_small
+	mcopy {12} {8} {4} 
+	jump :strncpy_end
+:strncpy_small
+	mcopy {16} {8} {4}
+	add  {4} {16}  {8}  ;  {8} = dest + len src
+	sub {12} {16} {12}  ; {12} = n - len src
+	mzero {12} {8}
+:strncpy_end
+	return {4}
+
+export strlen
+func_local strlen 1  ; const char *s
+	aload {0} -1 (sp)  ; s
+	linearsearch 0 1 (sp) 1 -1 0 4 (sp)
+	return (sp)
+
+; Note: for large strings, it may be better to call with 1 + min(|s1|, |s2|) as
+; length instead of strcmp/strncmp.
+
+export strcmp 
+func_local strcmp 6  ; const char *s1, const char *s2
+	aload {0} -1 {4} ; s1
+	aload {0} -2 {8} ; s2
+:strcmp_loop
+	aloadb {4} {20} {12} ; {12} <- s1[i]
+	aloadb {8} {20} {16} ; {16} <- s2[i]
+	jne {12} {16} :strcmp_diff
+	jz {12} 0 ; s1[i] == s2[i] == 0
+	add {20} 1 {20}  ; i = i + 1
+	jump :strcmp_loop
+:strcmp_diff
+	jgeu {12} {16} 1
+	return -1
+
+export strncmp 
+func_local strncmp 7  ; const char *s1, const char *s2, size_t n
+	aload {0} -1  {4} ; s1
+	aload {0} -2  {8} ; s2
+	aload {0} -3 {24} ; n
+	jz {24} 0
+:strncmp_loop
+	aloadb {4} {20} {12} ; {12} <- s1[i]
+	aloadb {8} {20} {16} ; {16} <- s2[i]
+	jne {12} {16} :strncmp_diff
+	jz {12} 0 ; s1[i] == s2[i] == 0
+	add {20} 1 {20}  ; i = i + 1
+	jltu {20} {24} :strncmp_loop
+	return 0
+:strncmp_diff
+	jgeu {12} {16} 1
+	return -1

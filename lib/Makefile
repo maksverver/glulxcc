@@ -20,7 +20,8 @@ $Bintstr$O:	intstr.c;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bprintf$O:	printf.c;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bputs$O:	puts.ula;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bstdlib$O:	stdlib.c;	$(CC) $(CFLAGS) -c -o $@ $<
-$Bstring$O:	string.c;	$(CC) $(CFLAGS) -c -o $@ $<
+$Bstring$O:	string.ula;	$(CC) $(CFLAGS) -c -o $@ $<
+# $Bstring$O:	string.c;	$(CC) $(CFLAGS) -c -o $@ $<
 
 $Blibc.ulo: $(OBJS)
 	cat $(OBJS) >$@
