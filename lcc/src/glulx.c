@@ -362,8 +362,6 @@ static const char *eval_value(Node p)
     case ADD:
     case SUB:
     case MUL:
-    case DIV:
-    case MOD:
     case BAND:
     case BOR:
     case BXOR:
@@ -378,8 +376,6 @@ static const char *eval_value(Node p)
             case ADD:  op = "add"; break;
             case SUB:  op = "sub"; break;
             case MUL:  op = "mul"; break;
-            case DIV:  op = "div"; break;  /* FIXME: doesn't work for unsigned! */
-            case MOD:  op = "mod"; break;  /* FIXME: doesn't work for unsigned! */
             case BAND: op = "bitand"; break;
             case BOR:  op = "bitor"; break;
             case BXOR: op = "bitxor"; break;
@@ -391,6 +387,50 @@ static const char *eval_value(Node p)
             arg1 = eval_value(p->kids[0]);
             print("\t%s %s %s (sp)\n", op, arg1, arg2);
             return "(sp)";
+        }
+    case DIV:
+    case MOD:
+        {
+            const char *op = generic(p->op) == DIV ? "div" : "mod";
+            assert(opsize(p->op) == 4);
+            arg2 = eval_value(p->kids[1]);
+            arg1 = eval_value(p->kids[0]);
+            if (optype(p->op) == I)  /* signed div/mod */
+            {
+                print("\t%s %s %s (sp)\n", op, arg1, arg2);
+                return "(sp)";
+            }
+            else  /* unsigned div/mod */
+            {
+                int label, stack_args;
+                assert(optype(p->op) == U || optype(p->op) == P);
+                stack_args = 0;
+                if (strcmp(arg1, "(sp)") == 0) ++stack_args;
+                if (strcmp(arg2, "(sp)") == 0) ++stack_args;
+                if (stack_args > 0) print("\tstkcopy %d\n", stack_args);
+                label = genlabel(2);
+                print("\tbitor %s %s (sp)\n"              /* arg1 arg2 */
+                      "\tjge (sp) 0 :%d\n"                /* l0 */
+                      "\tcallfii :_u%s %s %s (sp)\n"      /* op arg1 arg2 */
+                      "\tjump :%d\n"                      /* l1 */
+                      ":%d\n\t%s %s %s (sp)\n"            /* l0 op arg1 arg2 */
+                      ":%d\n",                            /* l1 */
+                      arg1, arg2,
+                      label+0,
+                      op, arg1, arg2,
+                      label+1,
+                      label+0, op, arg1, arg2,
+                      label+1 );
+                return "(sp)";
+#if 0
+                /* Alternative: always perform the call, which generates less
+                   code and executes less instructions when the _udiv/_umod has
+                   to be called anyway, but is more expensive when used with
+                   small integers. */
+                print("\tcallfii :_u%s %s %s (sp)\n", op, arg1, arg2);
+                return "(sp)";
+#endif
+            }
         }
     }
 

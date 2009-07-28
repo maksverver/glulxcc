@@ -25,13 +25,13 @@ static uint nglobalref;
 static struct labelref *globalrefs;
 
 /* For assembling sections: */
-static enum secttype cur_secttype = SECTION_INVALID;
+static enum secttype cur_secttype = SECTION_CODE;
 struct partial_section {
     uint npiece;
     struct piece *pieces;
     uint ndef;
     struct localdef { char *label; uint piece; } *defs;
-} partial_sections[SECTION_BSS + 1], *sec = NULL;
+} partial_sections[SECTION_BSS + 1], *sec = &partial_sections[SECTION_CODE];
 
 #define resize(elem, new_size) \
     do_resize((void**)&elem##s, &n##elem, sizeof(*elem##s), new_size)
@@ -253,7 +253,6 @@ void def_export(const char *label)
 /* Define a section-local label */
 void def_label(const char *label)
 {
-    assert(sec != NULL);
     sec_resize(def, sec->ndef + 1);
     sec->defs[sec->ndef - 1].label = strdup(label);
     sec->defs[sec->ndef - 1].piece = sec->npiece;
@@ -392,8 +391,6 @@ void end_section()
 {
     struct section *section;
     uint n, offset;
-
-    if (cur_secttype == SECTION_INVALID) fatal("no section declared");
 
     assert(sec->npiece > 0);
 

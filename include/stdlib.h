@@ -18,4 +18,20 @@ extern char *getenv(const char *name);
 
 /* mssing: malloc, calloc, realloc, free, atexit */
 
+typedef struct {
+    int quot;
+    int rem;
+} div_t;
+
+div_t div(int numerator, int denominator);
+
+/* maybe add this:
+typedef struct {
+    unsigned quot;
+    unsigned rem;
+} udiv_t;
+
+udiv_t udivmod(unsigned numerator, unsigned denominator);
+*/
+
 #endif /* ndef STDLIB_H_INCLUDED */

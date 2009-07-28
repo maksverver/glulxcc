@@ -15,7 +15,10 @@ static struct literal cur_lit;
 static struct instruction cur_instr;
 static int cur_oper_index = 0;
 static struct operand cur_oper;
-static char *cur_name;
+static int cur_func_type;
+static char *cur_func_name;
+static int cur_func_nlocal;
+static char **cur_func_locals;
 
 void yyerror(const char *str)
 {
@@ -26,22 +29,6 @@ void yyerror(const char *str)
 int yywrap()
 {
     return 1;
-}
-
-static void parse_name()
-{
-    const char *s = yytext;
-    while (*s != '\0' && !isspace(*s)) ++s;
-    while (*s != '\0' &&  isspace(*s)) ++s;
-    assert(*s != '\0');
-    assert(cur_name == NULL);
-    cur_name = strdup(s);
-}
-
-static void free_name()
-{
-    free(cur_name);
-    cur_name = NULL;
 }
 
 static char *parse_labeldef(const char *s)
@@ -129,23 +116,72 @@ static void emit_string(const char *str)
     }
 }
 
-static void func_header(const char *name, int type, int narg)
+static void func_header(const char *name, int type, int nlocal)
 {
     split_section();
     def_label(name);
     cur_lit.label  = NULL;
     cur_lit.adjust = type;
     emit_data(&cur_lit, SIZE_BYTE);
-    assert(narg >= 0);
-    while (narg > 0)
+    assert(nlocal >= 0);
+    while (nlocal > 0)
     {
-        int n = narg > 255 ? 255 : narg;
+        int n = nlocal > 255 ? 255 : nlocal;
         cur_lit.adjust = 0x0400 | n;
-        narg -= n;
+        nlocal -= n;
         emit_data(&cur_lit, SIZE_SHORT);
     }
     cur_lit.adjust = 0;
     emit_data(&cur_lit, SIZE_SHORT);
+}
+
+static void free_locals()
+{
+    if (cur_func_locals != NULL)
+    {
+        int n;
+        for (n = 0; n < cur_func_nlocal; ++n)
+            free(cur_func_locals[n]);
+        free(cur_func_locals);
+        cur_func_locals = NULL;
+    }
+    cur_func_nlocal = 0;
+}
+
+static void set_unnamed_locals(int n)
+{
+    cur_func_nlocal = n;
+}
+
+static void add_named_local(const char *name)
+{
+    char *copy = strdup(name);
+    assert(copy != NULL);
+    cur_func_locals = realloc( cur_func_locals,
+                               sizeof(char*)*(cur_func_nlocal + 1) );
+    assert(cur_func_locals != NULL);
+    cur_func_locals[cur_func_nlocal++] = copy;
+}
+
+/* Set current operand to the offset of parameter named `name'. */
+static void local_ref(const char *name)
+{
+    if (cur_func_locals != NULL)
+    {
+        int n;
+        for (n = 0; n < cur_func_nlocal; ++n)
+        {
+            if (strcmp(cur_func_locals[n], name) == 0)
+            {
+                cur_oper.value.label  = NULL;
+                cur_oper.value.adjust = 4*n;
+                cur_oper.type = OPER_LOCAL;
+                return;
+            }
+        }
+    }
+    fprintf(stderr, "Undeclared reference to `%s' on line %d\n", name, lineno);
+    exit(1);
 }
 
 %}
@@ -155,7 +191,7 @@ static void func_header(const char *name, int type, int narg)
 %token STACK EXT EXPORT IMPORT
 %token FUNC_STACK FUNC_LOCAL
 %token LABELDEF LABELREF
-%token OPCODE
+%token OPCODE NAME
 %token DC DS SZB SZS SZL
 %token SP DISCARD
 %token INT STRING
@@ -180,17 +216,31 @@ statement : section_stmt
           | EXT INT   { set_ext_size(atoi(yytext)); }
           ;
 
-export_stmt : EXPORT { parse_name(yytext); def_export(cur_name); free_name(); }
+export_stmt : EXPORT NAME { def_export(yytext); }
             ;
 
-import_stmt : IMPORT { fprintf(stderr, "WARNING: import statement ignored "
-                                       "on line %d\n", lineno); }
+import_stmt : IMPORT NAME { fprintf(stderr, "WARNING: import statement ignored "
+                                            "on line %d\n", lineno); }
             ;
 
-func_stmt   : FUNC_STACK { parse_name(); }
-              INT { func_header(cur_name, 0xc0, atoi(yytext)); free_name(); }
-            | FUNC_LOCAL { parse_name(); }
-              INT { func_header(cur_name, 0xc1, atoi(yytext)); free_name(); }
+func_stmt   : func_type { free_locals(); }
+              NAME { cur_func_name = strdup(yytext); }
+              func_params
+              { func_header(cur_func_name, cur_func_type, cur_func_nlocal);
+                free(cur_func_name); }
+            ;
+
+func_params : unnamed_locals | named_locals;
+
+unnamed_locals : INT { set_unnamed_locals(atoi(yytext)); }
+               ;
+
+named_locals : named_locals NAME { add_named_local(yytext); }
+             |
+             ;
+
+func_type   : FUNC_STACK { cur_func_type = 0xc0; }
+            | FUNC_LOCAL { cur_func_type = 0xc1; }
             ;
 
 optlabeldefs : optlabeldefs LABELDEF
@@ -230,6 +280,7 @@ operand : literal { cur_oper.type = OPER_CONST;
                            cur_oper.type  = OPER_RAMREF; } RBRACK optszpf
         | LBRACE int_literal { cur_oper.value = cur_lit;
                                cur_oper.type  = OPER_LOCAL; } RBRACE optszpf
+        | NAME { local_ref(yytext); }
         ;
 
 optszpf : SZB | SZS | SZL | ;

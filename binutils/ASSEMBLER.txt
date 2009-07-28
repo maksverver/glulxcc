@@ -67,10 +67,15 @@ Special directives:
     assembler automatically imports a symbol when a label is referenced but not
     defined.)
 
-  func_stack <name> <narg>
-  func_local <name> <narg>
+  func_stack <name> <locals>
+  func_local <name> <locals>
 
-    Emit a function signature of type C0 or C1 (respectively) which name <name>
-    taking <narg> 32-bit arguments. The current section is split into separate
-    sections (so relative label references cannot cross these directives). The
-    purpose of this is to allow unused functions to be dropped by the linker.
+    Emit a function signature of type C0 or C1 (respectively) which name <name>.
+    The current section is split in two (so relative label references cannot
+    cross these directives). The purpose of this is to allow unused functions to
+    be dropped by the linker.
+
+    The local variable list is either a single integer specifying the number of
+    32-bit local variables to allocate (which can then be refered to as {0},
+    {4}, etc.) or a list of named variables which can be refered to in the
+    function body directly.
