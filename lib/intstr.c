@@ -15,9 +15,9 @@ static char utox_buf[40];
          the octal/hexadecimal conversion routines with shifts instead. */
 #define utox(name, digits, base)        \
                                         \
-const char *name(unsigned u)            \
+const char *_##name(unsigned u)         \
 {                                       \
-    char *p = &utox_buf[33];            \
+    char *p = &utox_buf[39];            \
     do {                                \
         *--p = digits[u%base];          \
         u /= base;                      \
@@ -32,21 +32,16 @@ utox(Xtostr, "0123456789ABCDEF", 16)
 
 #undef utox
 
-const char *itostr(int i)
+const char *_itostr(int i)
 {
     const char *p;
     if (i >= 0)
     {
-        p = utostr((unsigned)i);
-    }
-    else
-    if (i == 0x80000000)
-    {
-        return "-2147483648";
+        p = _utostr((unsigned)i);
     }
     else
     {
-        p = utostr((unsigned)-i);
+        p = _utostr((unsigned)-i);
         *(char*)--p = '-';
     }
     return p;

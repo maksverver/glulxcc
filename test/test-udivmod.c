@@ -1,27 +1,40 @@
+#include "stdlib.h"
 static int npass = 0, nfail = 0;
 
-void test(unsigned n, unsigned d, unsigned q_ok, unsigned r_ok)
+void test(unsigned num, unsigned den, unsigned quot, unsigned rem)
 {
-	unsigned q, r;
-	q = n/d;
-	r = n%d;
-	if (q == q_ok && r == r_ok)
-	{
+	udiv_t ud;
+
+	/* Test division operator */
+	ud.quot = num/den;
+	if (ud.quot == quot)
 		++npass;
-	}
 	else
-	{
-		++nfail;
-		printf("Test failed!\n"
-		      "\t%u/%u=%u (expected %u)\n"
-		      "\t%u%%%u=%u (expected %u)\n",
-		      n, d, q, q_ok,
-		      n, d, r, r_ok);
-	}
+		printf("Test failed: %u/%u == %u (expected: %u)\n",
+		       num, den, ud.quot, quot), ++nfail;
+	
+	/* Test modulo operator */
+	ud.rem = num%den;
+	if (ud.rem == rem)
+		++npass;
+	else
+		printf("Test failed: %u%%%u == %u (expected: %u)\n",
+		       num, den, ud.rem, rem), ++nfail;
+
+	/* Test non-standard udiv() function */
+	ud = udiv(num, den);
+	if (ud.quot == quot && ud.rem == rem)
+		++npass;
+	else
+		printf("Test failed: udivmod(%u, %u) == { %u, %u }"
+		       " expected { %u, %u }\n", num, den, ud.quot, ud.rem,
+			quot, rem), ++nfail;
 }
 
 int main()
 {
+	test(123, 456, 123/456, 123%456);
+	test(12345, 7, 12345/7, 12345%7);
 	test(0x00000000u, 0x00000001u, 0x00000000u, 0x00000000u);
 	test(0x00000000u, 0x00000002u, 0x00000000u, 0x00000000u);
 	test(0x00000000u, 0xffffffffu, 0x00000000u, 0x00000000u);

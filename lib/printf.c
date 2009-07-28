@@ -4,11 +4,11 @@
 #include "glulx.h"
 
 /* Defined in instr.c */
-extern const char *itostr(int i);       /* integer to decimal string */
-extern const char *otostr(unsigned u);  /* unsigned to octal string */
-extern const char *utostr(unsigned u);  /* unsigned to decimal string */
-extern const char *xtostr(unsigned u);  /* unsigned to lowercase hex. string */
-extern const char *Xtostr(unsigned u);  /* unsigned to uppercase hex. string */
+extern const char *_itostr(int i);       /* integer to decimal string */
+extern const char *_otostr(unsigned u);  /* unsigned to octal string */
+extern const char *_utostr(unsigned u);  /* unsigned to decimal string */
+extern const char *_xtostr(unsigned u);  /* unsigned to lowercase hex. string */
+extern const char *_Xtostr(unsigned u);  /* unsigned to uppercase hex. string */
 
 /* Writes `len' padding characters and returns the number of characters written;
    note that `len' may be negative, nothing is written and 0 is returned. */
@@ -92,15 +92,15 @@ int vfprintf(FILE *fp, const char *fmt, va_list ap)
 
             case 'd':  /* signed decimal */
             case 'i':
-                str_out = itostr(va_arg(ap, int));
+                str_out = _itostr(va_arg(ap, int));
                 break;
 
             case 'u':  /* unsigned decimal */
-                str_out = utostr(va_arg(ap, unsigned));
+                str_out = _utostr(va_arg(ap, unsigned));
                 break;
 
             case 'o':  /* unsigned octal */
-                str_out = otostr(va_arg(ap, unsigned));
+                str_out = _otostr(va_arg(ap, unsigned));
                 if (alt && *str_out != 0) *(char*)--str_out = '0';
                 break;
 
@@ -109,8 +109,8 @@ int vfprintf(FILE *fp, const char *fmt, va_list ap)
                 /* falls through */
             case 'x':  /* unsigned lowercase hexadecimal */
             case 'X':  /* unsigned uppercase hexadecimal */
-                str_out = (*fmt == 'X') ? Xtostr(va_arg(ap, unsigned))
-                                        : xtostr(va_arg(ap, unsigned));
+                str_out = (*fmt == 'X') ? _Xtostr(va_arg(ap, unsigned))
+                                        : _xtostr(va_arg(ap, unsigned));
                 if (alt)
                 {
                     *(char*)--str_out = 'x';
