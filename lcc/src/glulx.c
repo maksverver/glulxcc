@@ -514,6 +514,8 @@ static void X(emit)(Node p)
             {
                 const char *op = NULL, *arg1, *arg2;
 
+                /* TODO: generate jz/jnz if applicable? */
+
                 switch (p->op)
                 {
                 case EQ + I + sizeop(4):
