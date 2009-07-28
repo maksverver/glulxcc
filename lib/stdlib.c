@@ -2,6 +2,8 @@
 #include "ctype.h"
 #include "glulx.h"
 
+extern void _atexit_run(void);  /* defined in atexit.c */
+
 int atoi(const char *nptr)
 {
     int res = 0, neg;
@@ -30,6 +32,7 @@ void abort(void)
 void exit(int status)
 {
     (void)status;  /* ignored */
+    _atexit_run();
     glulx_quit();
 }
 

@@ -5,12 +5,14 @@ CFLAGS=-I../include
 B=$(BUILDDIR)/
 O=.ulo
 
-OBJS=	$Bassert$O $Bcrtstart$O $Bctype$O $Bdivmod$O $Bglulx$O $Bglk$O \
+OBJS=	$Bassert$O $Batexit$O $Bcrtstart$O $Bctype$O $Bdivmod$O \
+	$Bglulx$O $Bglk$O \
 	$Bintstr$O $Bprintf$O $Bputs$O $Bstdlib$O $Bstring$O
 
 all: $Blibc.ulo
 
 $Bassert$O:	assert.c;	$(CC) $(CFLAGS) -c -o $@ $<
+$Batexit$O:	atexit.c;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bcrtstart$O:	crtstart.ula;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bctype$O:	ctype.c;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bdivmod$O:	divmod.ula;	$(CC) $(CFLAGS) -c -o $@ $<

@@ -15,7 +15,7 @@ section code
 
 	; Initialize stack
 	copy :stack {0}
-	add  {0} 8 {4}
+	add  {0} 20 {4}  ; room for 0 locals, 5 arguments
 
 	; Open initial Glk (text) window and make it current
 	astore {4} -1 0
@@ -31,6 +31,10 @@ section code
 	; Call real main function
 	astore {4} -1 1
 	astore {4} -2 :argv
-	callfi :main {4} ~
+	callfi :main {4} (sp)
 
-	quit
+	; Call exit (does not return)
+	astore {4} -1 (sp)
+	callfi :exit {4} ~
+
+	return 0

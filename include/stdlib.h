@@ -15,8 +15,10 @@ extern void srand(unsigned seed);
 extern void abort(void);
 extern void exit(int status);
 extern char *getenv(const char *name);
+#define ATEXIT_MAX 32
+int atexit(void (*function)(void));
 
-/* mssing: malloc, calloc, realloc, free, atexit */
+/* mssing: malloc, calloc, realloc, free, */
 
 typedef struct {
     int quot;
@@ -25,13 +27,12 @@ typedef struct {
 
 div_t div(int numerator, int denominator);
 
-/* maybe add this:
 typedef struct {
     unsigned quot;
     unsigned rem;
 } udiv_t;
 
-udiv_t udivmod(unsigned numerator, unsigned denominator);
-*/
+/* NB. NOT a standard function; do not use unless performance is critical! */
+udiv_t udiv(unsigned numerator, unsigned denominator);
 
 #endif /* ndef STDLIB_H_INCLUDED */
