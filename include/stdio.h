@@ -17,21 +17,23 @@ typedef unsigned int fpos_t;
 #define stdout ((FILE*)glk_stream_get_current())
 #define stderr ((FILE*)glk_stream_get_current())
 
-/* putc/puts */
-extern int putchar(int c);
-extern int fputc(int c, FILE *stream);
+/* fwrite/fputs/puts/putchar/fputc/putc/putchar */
+extern size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 extern int fputs(const char *s, FILE *stream);
 extern int puts(const char *s);
+extern int fputc(int c, FILE *stream);
+extern int putchar(int c);
 #define fputc(c, stream)    glk_put_char_stream(stream, c)
 #define putc(c, stream)     glk_put_char_stream(stream, c)
 #define putchar(c)          glk_put_char(c)
 
-/* getc/gets */
-extern int fgetc(FILE *stream);
+/* fread/fgets/gets/getchar/fgetc/getc/getchar */
+extern size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 extern char *fgets(char *s, int size, FILE *stream);
 extern char *gets(char *s);
+extern int fgetc(FILE *stream);
+extern int getchar(void);
 #define getc(stream)        fgetc(stream)
-#define getchar()           getc(stream)
 
 /* printf */
 extern int printf(const char *format, ...);

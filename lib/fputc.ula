@@ -1,0 +1,18 @@
+section code
+
+; fputc(int c, FILE *stream)
+export fputc
+func_local fputc  bp c
+	aload bp -1 c
+	copy c (sp)
+	aload bp -2 (sp)
+	glk 0x0081 2 ~  ; glk_put_char_stream
+	return c
+
+; putchar(int c)
+export putchar
+func_local putchar  bp~c
+	aload bp -1 c
+	copy c (sp)
+	glk 0x0080 1 ~  ; glk_put_char
+	return c
