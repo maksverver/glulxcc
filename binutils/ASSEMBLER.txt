@@ -19,6 +19,7 @@ Additionally, code generation is slightly different:
  - A two-pass assembler process to compact operands results in a compact
    encoding of constants, local variable references and branch offsets.
 
+
 Usage:
 
   glulxas input.ula output.ulo
@@ -34,17 +35,88 @@ Bugs/limitations:
  - branch offsets are computed correctly only for section-local label
    references.
 
+
 Syntax:
- - TODO: document (see Glulxa 0.5 for now)
+
+An assembly source file is a list of directives, each being a data declaration,
+an instruction, or a special directive. The parser is line-sensitive; usually
+each directive appears on a separate line. The semicolon character (`;')
+indicates the start of a comment that extends to the end of the line.
+
+
+Labels:
+
+Labels are used to refer to the memory addresses. Label declarations can be
+added to data and code declarations but not special directives. They must appear
+on the beginning of the line, either in front of the declaration or on a
+previous line. For example:
+    :foo
+    :bar    quit
+The code above defines to labels (`foo' and `quit') both to the address of the
+`quit' instruction.
+
+Labels are referenced when they appear in data or code declarations. Example:
+    :loop   jump :loop
+The code above defines a label `loop' that is also used as the branch target of
+the `jump' instruction (resulting in an endless loop). Note that a relative
+address is computed automatically when a label is used as a branch target.
+
+When referencing a label, a fixed offset may be specified, seperated by a
+colon character. For example, :foo:-10 refers to the address for label `foo'
+minus 10.
+
+
+Data declarations:
+
+Data declarations take two forms: initialized and uninitialized data.
+Initialized data starts with the `dc' directive followed by a size prefix
+(`.b' for byte, `.s' for short, `.l' for long; 8, 16 and 32 bits respectively),
+followed by a list of values to be assembled. These values can be literal
+integers (in decimal or hexadecimal format) or label references, for example:
+    dc.l 1 0x20 :foo -7
+The code above emits four 32-bit values (1, 32, the address of label `foo', and
+-7) encoded in big-endian notation. For compatibility with glulxa, string
+literals are supported:
+    dc.b "hello" 0  ; equivalent to:  dc.b 0xe0 104 101 108 108 11 0
+
+Uninitialized data is specified with the `ds' directive, followed by a size
+prefix and a single positive integer specifying how many elements of the
+given size to allocate. For example:
+    dc.l 10
+The code above allocates 40 bytes of space. Uninitialized data, as well as all
+data declared in BSS sections (initialized or not) is initialized to zero.
+
+
+Code declarations:
+
+Code is emitted by specifying a Glulx opcode mnemonic followed by the required
+number of operands. Operands fall into five categories:
+    - constants (integers or label references, as in data declarations above);
+      the special notation `~' is equivalent to 0 (intended to be used for
+      output operands, to specify that the result will be discarded).
+    - local variable references, specified with a byte offset enclosed in curly
+      braces, e.g. {0}, {4}, {8} for the first three long sized locals.
+    - ROM-relative global memory references, specified with an address offset,
+      which can be an integer or a label reference, enclosed in parentheses,
+      e.g. (100), (:somevar).
+    - RAM-relative references, similar as above, but encoded relative to the
+      start of RAM, enclosed in square brackets, e.g. [100], [:somevar].
+      This type of operand is currently not supported by the assembler.
+    - stack reference, written as `(sp)', which cause input operands to be
+      popped from the stack, and output operands to be pushed onto the stack.
+Note that local variables can also be named (see the func_local and func_stack
+special directives below).
+
 
 Special directives:
 
   section code/data/vcode/vdata/bss
 
-    Change the section in which other directives produce output. The code and
-    data sections will reside in read-only memory. The bss section contains
-    zero-initialized data, regardless of what other directives specify. There is
-    no functional difference between code and data (or vcode & vdata) sections.
+    Change the section in which other directives produce output, which affects
+    where output appears in the linked Glulx module. The code and data sections
+    will reside in read-only memory. The bss section contains zero-initialized
+    data only. There is no functional difference between code and data (or vcode
+    and vdata) sections. By default, output is written to the code section.
 
   ext <size>
 
@@ -70,7 +142,7 @@ Special directives:
   func_stack <name> <locals>
   func_local <name> <locals>
 
-    Emit a function signature of type C0 or C1 (respectively) which name <name>.
+    Emit a function signature of type C0 or C1 (respectively) with name <name>.
     The current section is split in two (so relative label references cannot
     cross these directives). The purpose of this is to allow unused functions to
     be dropped by the linker.
@@ -79,3 +151,10 @@ Special directives:
     32-bit local variables to allocate (which can then be refered to as {0},
     {4}, etc.) or a list of named variables which can be refered to in the
     function body directly.
+
+    When local variables are joined by tildes (`~') they act as aliases for a
+    single variable slot. For example:
+        func_stack example foo bar~baz quux
+    Defines a function `example' that receives its arguments on the stack and
+    has three local variables, named `foo', `bar', `baz' and `quux', that
+    correspond to {0}, {4}, {4} and {8} respectively.

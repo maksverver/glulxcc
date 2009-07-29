@@ -32,7 +32,7 @@ ds                  return ++t == 1 ? DS         : NAME;
 [.]s                return SZS;
 [.]l                return SZL;
 [(]sp[)]            return SP;
-[~]                 return DISCARD;
+[~]                 return TILDE;
 [{]                 return LBRACE;
 [}]                 return RBRACE;
 [(]                 return LPAREN;
@@ -40,7 +40,7 @@ ds                  return ++t == 1 ? DS         : NAME;
 [[]                 return LBRACK;
 []]                 return RBRACK;
 
-    /* Variable tokens */
+    /* Variable size tokens */
 ["][^"]*["]                             ++t; return STRING;
 [+-]?(0|[1-9][0-9]*|0x[0-9a-fA-F]+)     return INT;
 [a-zA-Z_][a-zA-Z0-9_]*                  return ++t == 1 ? OPCODE : NAME;
