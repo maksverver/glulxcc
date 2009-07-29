@@ -13,9 +13,7 @@
 typedef struct glk_stream_struct FILE;
 typedef unsigned int fpos_t;
 
-#define stdin  ((FILE*)glk_stream_get_current())
-#define stdout ((FILE*)glk_stream_get_current())
-#define stderr ((FILE*)glk_stream_get_current())
+extern FILE *stdin, *stdout, *stderr;
 
 /* fwrite/fputs/puts/putchar/fputc/putc/putchar */
 extern size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
@@ -30,9 +28,9 @@ extern int putchar(int c);
 /* fread/fgets/gets/getchar/fgetc/getc/getchar */
 extern size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 extern char *fgets(char *s, int size, FILE *stream);
-extern char *gets(char *s);
+/* extern char *gets(char *s); */
 extern int fgetc(FILE *stream);
-extern int getchar(void);
+/* extern int getchar(void); */
 #define getc(stream)        fgetc(stream)
 
 /* printf */

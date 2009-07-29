@@ -16,3 +16,10 @@ func_local putchar  bp~c
 	copy c (sp)
 	glk 0x0080 1 ~  ; glk_put_char
 	return c
+
+; fgetc(FILE *stream)
+export fgetc
+func_local fgetc bp~res
+	aload bp -1 (sp)
+	glk 0x0090 1 res  ; glk_get_char_stream
+	return res

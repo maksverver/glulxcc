@@ -1,40 +1,11 @@
-	stack 4096  ;  4 KB
-
-export _start
+stack 32768          ; Glulx stack: 32 KB
 
 section bss
-:stack	ds.l 15360  ; 60 KB
-
-section vdata
-:argv0	dc.b 109 97 105 110 0  ; "main"
-:argv	dc.l :argv0 0
+:stack	ds.b 32768   ; C stack: 32 KB
 
 section code
-:_start
-	dc.b 0xc1 4 2 0 0  
 
-	; Initialize stack
-	copy :stack {0}
-	add  {0} 20 {4}  ; room for 0 locals, 5 arguments
-
-	; Open initial Glk (text) window and make it current
-	astore {4} -1 0
-	astore {4} -2 0
-	astore {4} -3 0
-	astore {4} -4 3
-	astore {4} -5 0
-	callfi :glk_window_open {4} (sp)
-	stkcopy 1  ; keep copy of window id on the stack
-	astore {4} -1 (sp)
-	callfi :glk_set_window {4} ~
-
-	; Call real main function
-	astore {4} -1 1
-	astore {4} -2 :argv
-	callfi :main {4} (sp)
-
-	; Call exit (does not return)
-	astore {4} -1 (sp)
-	callfi :exit {4} ~
-
+export _start
+func_local _start
+	callfi :_crt_start :stack ~
 	return 0

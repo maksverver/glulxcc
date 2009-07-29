@@ -6,8 +6,8 @@ B=$(BUILDDIR)/
 O=.ulo
 TARGETS=../include/glulx.h $Blibc.ulo
 
-OBJS=	$Bassert$O $Batexit$O $Bcrtstart$O $Bctype$O $Bdivmod$O \
-	$Bfgetc$O $Bfputc$O $Bfread$O $Bfwrite$O \
+OBJS=	$Bassert$O $Batexit$O $Bchario$O $Bcrt$O $Bcrtstart$O $Bctype$O \
+	$Bdivmod$O $Bfileio$O \
 	$Bglulx$O $Bglk$O \
 	$Bintstr$O $Bprintf$O $Bstdlib$O $Bstring$O
 
@@ -15,13 +15,12 @@ all: $(TARGETS)
 
 $Bassert$O:	assert.c;	$(CC) $(CFLAGS) -c -o $@ $<
 $Batexit$O:	atexit.c;	$(CC) $(CFLAGS) -c -o $@ $<
+$Bchario$O:	chario.ula;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bcrtstart$O:	crtstart.ula;	$(CC) $(CFLAGS) -c -o $@ $<
+$Bcrt$O:	crt.c;		$(CC) $(CFLAGS) -c -o $@ $<
 $Bctype$O:	ctype.c;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bdivmod$O:	divmod.ula;	$(CC) $(CFLAGS) -c -o $@ $<
-$Bfgetc$O:	fgetc.ula;	$(CC) $(CFLAGS) -c -o $@ $<
-$Bfputc$O:	fputc.ula;	$(CC) $(CFLAGS) -c -o $@ $<
-$Bfread$O:	fread.c;	$(CC) $(CFLAGS) -c -o $@ $<
-$Bfwrite$O:	fwrite.c;	$(CC) $(CFLAGS) -c -o $@ $<
+$Bfileio$O:	fileio.c;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bglk.ula:	glk.ula.m4;	m4 $< >$@ 
 $Bglk$O:	$Bglk.ula;	$(CC) $(CFLAGS) -c -o $@ $<
 $Bglulx.ula:	glulx.ula.m4;	m4 $< >$@
