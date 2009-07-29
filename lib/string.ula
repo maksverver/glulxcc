@@ -69,25 +69,31 @@ func_local memset 5  ; void *s, int c, size_t n
 	return {4}
 
 export strchr
-func_local strchr 1  ; const char *s, int c
-	aload {0} -1 (sp)  ; s
-	aload {0} -2 (sp)  ; c
-	linearsearch (sp) 1 (sp) 1 -1 0 2 (sp)
-	return (sp)
+func_local strchr bp s c  ; const char *s, int c
+	aload bp -1 s
+	aload bp -2 c
+	linearsearch c 1 s 1 -1 0 2 s
+	return s
+
+export strrchr
+func_local strrchr bp s c t
+	aload bp -1 s
+	aload bp -2 c
+	linearsearch c 1 s 1 -1 0 2 t
+	jz t :strrchr_end
+	jz c :strrchr_end
+:strrchr_search
+	add t 1 s
+	linearsearch c 1 s 1 -1 0 2 s
+	jz s :strrchr_end
+	copy s t
+	jump :strrchr_search
+:strrchr_end
+	return t
 
 export strcpy
 func_local strcpy 3  ; const char *dest, const char *src
 	aload {0} -1 {4}  ; dest
-	aload {0} -2 {8}  ; src
-	linearsearch 0 1 {8} 1 -1 0 4 (sp)  ; len src
-	add (sp) 1 (sp)
-	mcopy (sp) {8} {4}
-	return {4}
-
-export strcat
-func_local strcat 3  ; const char *dest, const char *src
-	aload {0} -1 {4}  ; dest
-	linearsearch 0 1 {4} 1 -1 0 0 {4}   ; {4} = dest + strlen(dest)
 	aload {0} -2 {8}  ; src
 	linearsearch 0 1 {8} 1 -1 0 4 (sp)  ; len src
 	add (sp) 1 (sp)
@@ -152,3 +158,27 @@ func_local strncmp 7  ; const char *s1, const char *s2, size_t n
 :strncmp_diff
 	jgeu {12} {16} 1
 	return -1
+
+export strcat
+func_local strcat  bp_dest src len pos
+	aload bp_dest -2 src
+	aload bp_dest -1 bp_dest
+	linearsearch 0 1 bp_dest 1 -1 0 0 pos   ; pos = dest + strlen(dest)
+	linearsearch 0 1 src 1 -1 0 4 len
+	mcopy len src pos
+	astoreb pos len 0
+	return bp_dest
+
+export strncat
+func_local strncat  bp_dest src n len pos
+	aload bp_dest -3 n
+	aload bp_dest -2 src
+	aload bp_dest -1 bp_dest
+	linearsearch 0 1 bp_dest 1 -1 0 0 pos  ; pos = dest + strlen(dest)
+	linearsearch 0 1 src 1 n 0 4 len
+	jne len -1 :strncat_copy
+	copy n len  ; strlen(src) >= n
+:strncat_copy
+	mcopy len src pos
+	astoreb pos len 0
+	return bp_dest

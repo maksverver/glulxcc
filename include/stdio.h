@@ -18,9 +18,11 @@ typedef unsigned int fpos_t;
 #define stderr ((FILE*)glk_stream_get_current())
 
 /* putc/puts */
+extern int putchar(int c);
+extern int fputc(int c, FILE *stream);
+extern int fputs(const char *s, FILE *stream);
+extern int puts(const char *s);
 #define fputc(c, stream)    glk_put_char_stream(stream, c)
-int fputs(const char *s, FILE *stream);
-int puts(const char *s);
 #define putc(c, stream)     glk_put_char_stream(stream, c)
 #define putchar(c)          glk_put_char(c)
 
