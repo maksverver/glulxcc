@@ -54,19 +54,22 @@ extern int vfscanf(FILE *stream, const char *format, va_list ap);
 */
 
 /* File I/O */
-/*
 extern FILE *fopen(const char *path, const char *mode);
-extern int fclose(FILE *fp);
+extern int fclose(FILE *stream);
 extern int fseek(FILE *stream, long offset, int whence);
 extern long ftell(FILE *stream);
 extern void rewind(FILE *stream);
 extern int fgetpos(FILE *stream, fpos_t *pos);
 extern int fsetpos(FILE *stream, fpos_t *pos);
 extern int fflush(FILE *stream);
+/*
 extern void clearerr(FILE *stream);
 extern int feof(FILE *stream);
 extern int ferror(FILE *stream);
 extern int fileno(FILE *stream);
 */
+
+extern FILE *tmpfile(void);
+extern int remove(const char *pathname);
 
 #endif /* ndef STDIO_H_INCLUDED */
