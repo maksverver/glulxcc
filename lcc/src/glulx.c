@@ -7,6 +7,7 @@
 static int params_size;     /* size of formal parameter area */
 static int locals_size;     /* size of locals area */
 static int staging_size;    /* size of call staging area */
+static int reg_offset;      /* offset "registers" (local variables) */
 
 /* TODO: later implement blockbeg/blockend to keep track of live stack space,
          so we can reduce the size of the locals area somewhat.
@@ -87,11 +88,31 @@ static void X(global)(Symbol p)
     print(":%s\n", p->name);
 }
 
+static int upgrade_to_register(Symbol p)
+{
+    assert(p->sclass == AUTO || p->sclass == REGISTER);
+    if (isint(p->type) && !p->addressed)
+    {
+        p->sclass   = REGISTER;
+        p->x.offset = reg_offset;
+        reg_offset  += 4;
+        return 1;
+    }
+    else
+    {
+        p->sclass = AUTO;
+        return 0;
+    }
+}
+
 static void X(local)(Symbol p)
 {
     assert(p->scope >= LOCAL);
-    p->x.offset = roundup(locals_size, p->type->align);
-    locals_size = p->x.offset + p->type->size;
+    if (!upgrade_to_register(p))
+    {
+        p->x.offset = roundup(locals_size, p->type->align);
+        locals_size = p->x.offset + p->type->size;
+    }
 }
 
 static void X(address)(Symbol p, Symbol q, long n)
@@ -117,6 +138,7 @@ static void X(function)(Symbol f, Symbol caller[], Symbol callee[], int ncalls)
     params_size  = 0;
     locals_size  = 0;
     staging_size = 0;
+    reg_offset   = ncalls == 0 ? 4 : 8;
 
     /* Find offsets for parameters (relative to base pointer) */
     {
@@ -124,11 +146,12 @@ static void X(function)(Symbol f, Symbol caller[], Symbol callee[], int ncalls)
         for (i = 0; caller[i] != NULL && callee[i] != NULL; ++i)
         {
             assert(callee[i]->scope == PARAM);
-            assert(caller[i]->type->size <= 4);
             assert(callee[i]->type->size <= 4);
+            assert(caller[i]->type->size <= 4);
             params_size = roundup(params_size + 4, 4);
             caller[i]->x.offset = -params_size;
             callee[i]->x.offset = -params_size;
+            upgrade_to_register(callee[i]);
         }
         assert(caller[i] == NULL && callee[i] == NULL);
     }
@@ -137,8 +160,10 @@ static void X(function)(Symbol f, Symbol caller[], Symbol callee[], int ncalls)
     gencode(caller, callee);
 
     /* Emit prologue */
-    print("func_local %s 2\n", f->name);
-    print("\tadd {0} %d {4}\n", locals_size + staging_size);
+    assert(reg_offset >= 4 && reg_offset%4 == 0);
+    print("func_local %s %d\n", f->name, reg_offset/4);
+    if (ncalls > 0)
+        print("\tadd {0} %d {4}\n", locals_size + staging_size);
 
     /* Caller passes BP in loc(0), callee computes SP in loc(1)
 
@@ -215,6 +240,10 @@ static Node X(gen)(Node start)
    This may generate code to evaluate to the stack and then return (sp), or it
    could return a constant or memory or local variable reference.
 
+   If dest is not NULL, the call result must be placed in that operand, and
+   dest is returned. Otherwise, the function returns a value suitable to be used
+   as an instruction operand.
+
    NB. when this function is called to evaluate the arguments to another opcode,
     order of evaluation matters! e.g. this is the correct:
         arg2 = eval_value(p->kids[1]);
@@ -226,12 +255,12 @@ static Node X(gen)(Node start)
         print("add %s %s (sp)", arg1, arg2);
     Since both arg1 and arg2 may return (sp) in which case arg2 should be popped
     of the stack first. */
-static const char *eval_value(Node p);
+static const char *eval_value(Node p, const char *dest);
 
-static const char *eval_call(Node p, int keep_result)
+static const char *eval_call(Node p, const char *dest)
 {
     assert(generic(p->op) == CALL);
-    const char *dest = keep_result ? "(sp)" : "~";
+    if (dest == NULL) dest = "(sp)";
     switch (p->kids[0]->op)
     {
     case ADDRG + P + sizeop(4):  /* call to label */
@@ -239,60 +268,102 @@ static const char *eval_call(Node p, int keep_result)
         break;
 
     case INDIR + P + sizeop(4):  /* call through function pointer */
-        print("\tcallfi %s {4} %s\n", eval_value(p->kids[0]), dest);
+        print("\tcallfi %s {4} %s\n", eval_value(p->kids[0], NULL), dest);
         break;
 
     default:
         assert(0);
     }
-    return keep_result ? "(sp)" : "0";
+    return dest;
 }
 
-static const char *eval_value(Node p)
+/* Returns whether the given node is actually a register access: an ADDRL or
+   ADDRF node with an associated symbol with REGISTER storage class. */
+static int access_register(Node p)
+{
+    return (generic(p->op) == ADDRL || generic(p->op) == ADDRF) &&
+        p->syms[0]->sclass == REGISTER;
+}
+
+static int access_cstack(Node p)
+{
+    return (generic(p->op) == ADDRL || generic(p->op) == ADDRF) &&
+        p->syms[0]->sclass == AUTO;
+}
+
+static const char *copy(const char *src, const char *dest)
+{
+    if (dest == NULL) return src;
+    if (strcmp(src, dest) != 0) print("\tcopy %s %s\n", src, dest);
+    return dest;
+}
+
+static const char *eval_value(Node p, const char *dest)
 {
     const char *arg1, *arg2;
 
     switch (generic(p->op))
     {
     case CALL:
-        return eval_call(p, 1);
+        return eval_call(p, dest);
 
     case ADDRG:  /* address of global variable */
-        return stringf(":%s", p->syms[0]->name);
+        return copy(stringf(":%s", p->syms[0]->name), dest);
 
     case ADDRF:  /* address of argument (formal parameter) */
-        print("\tadd {0} %d (sp)  ; param %s\n",
-              p->syms[0]->x.offset, p->syms[0]->name);
-        return "(sp)";
+        assert(p->syms[0]->sclass == AUTO);
+        if (dest == NULL) dest = "(sp)";
+        print("\tadd {0} %d %s  ; param %s\n",
+            p->syms[0]->x.offset, dest, p->syms[0]->name);
+        return dest;
 
     case ADDRL:  /* address of local variable */
-        print("\tadd {0} %d (sp)  ; local %s\n",
-              p->syms[0]->x.offset, p->syms[0]->name);
-        return "(sp)";
+        assert(p->syms[0]->sclass == AUTO);
+        if (dest == NULL) dest = "(sp)";
+        print("\tadd {0} %d %s  ; local %s\n",
+            p->syms[0]->x.offset, dest, p->syms[0]->name);
+        return dest;
 
     case INDIR:  /* fetch value by address */
-        arg1 = eval_value(p->kids[0]);
-        switch (p->op)
+        if (access_register(p->kids[0]))
         {
-        case INDIR + I + sizeop(1):
-            print("\taloadb %s 0 (sp)\n"
-                  "\tsexb (sp) (sp)\n", arg1);
-            return "(sp)";
-        case INDIR + I + sizeop(2):
-            print("\taloads %s 0 (sp)\n"
-                  "\tsexs (sp) (sp)\n", arg1);
-            return "(sp)";
-        case INDIR + U + sizeop(1):
-            print("\taloadb %s 0 (sp)\n", arg1);
-            return "(sp)";
-        case INDIR + U + sizeop(2):
-            print("\taloads %s 0 (sp)\n", arg1);
-            return "(sp)";
-        case INDIR + I + sizeop(4):
-        case INDIR + U + sizeop(4):
-        case INDIR + P + sizeop(4):
-            print("\taload %s 0 (sp)\n", arg1);
-            return "(sp)";
+            return copy(stringf("{%d}", p->kids[0]->syms[0]->x.offset), dest);
+        }
+        else
+        if (access_cstack(p->kids[0]))
+        {
+            assert(opsize(p->op) == 4);
+            if (dest == NULL) dest = "(sp)";
+            assert(p->kids[0]->syms[0]->x.offset%4 == 0);
+            print("\taload {0} %d %s\n", p->kids[0]->syms[0]->x.offset/4, dest);
+            return dest;
+        }
+        else
+        {
+            if (dest == NULL) dest = "(sp)";
+            arg1 = eval_value(p->kids[0], NULL);
+            switch (p->op)
+            {
+            case INDIR + I + sizeop(1):
+                print("\taloadb %s 0 (sp)\n"
+                      "\tsexb (sp) %s\n", arg1, dest);
+                return dest;
+            case INDIR + I + sizeop(2):
+                print("\taloads %s 0 (sp)\n"
+                    "\tsexs (sp) %s\n", arg1, dest);
+                return dest;
+            case INDIR + U + sizeop(1):
+                print("\taloadb %s 0 %s\n", arg1, dest);
+                return dest;
+            case INDIR + U + sizeop(2):
+                print("\taloads %s 0 %s\n", arg1, dest);
+                return dest;
+            case INDIR + I + sizeop(4):
+            case INDIR + U + sizeop(4):
+            case INDIR + P + sizeop(4):
+                print("\taload %s 0 %s\n", arg1, dest);
+                return dest;
+            }
         }
         break;
 
@@ -302,12 +373,12 @@ static const char *eval_value(Node p)
         case CNST + I + sizeop(1):
         case CNST + I + sizeop(2):
         case CNST + I + sizeop(4):
-            return stringf("%d", (int)p->syms[0]->u.c.v.i);
+            return copy(stringf("%d", (int)p->syms[0]->u.c.v.i), dest);
         case CNST + U + sizeop(1):
         case CNST + U + sizeop(2):
         case CNST + U + sizeop(4):
         case CNST + P + sizeop(4):
-            return stringf("%u", (unsigned)p->syms[0]->u.c.v.u);
+            return copy(stringf("%u", (unsigned)p->syms[0]->u.c.v.u), dest);
         }
         break;
 
@@ -320,26 +391,29 @@ static const char *eval_value(Node p)
     case CVI:  /* convert from signed integer */
         assert(optype(p->op) == I || optype(p->op) == U || optype(p->op) == P);
         assert(opsize(p->op) == 4 || opsize(p->kids[0]->op) == 4);
-        arg1 = eval_value(p->kids[0]);
+        arg1 = eval_value(p->kids[0], dest);
         switch (opkind(p->op))
         {
         case I + sizeop(1):
-            print("\tsexb %s (sp)\n", arg1);
-            return "(sp)";
+            if (dest == NULL) dest = "(sp)";
+            print("\tsexb %s %s\n", arg1, dest);
+            return dest;
         case U + sizeop(1):
-            print("\tbitand %s 0xff (sp)\n", arg1);
-            return "(sp)";
+            if (dest == NULL) dest = "(sp)";
+            print("\tbitand %s 0xff %s\n", arg1, dest);
+            return dest;
         case I + sizeop(2):
-            print("\tsexs %s (sp)\n", arg1);
-            return "(sp)";
+            if (dest == NULL) dest = "(sp)";
+            print("\tsexs %s %s\n", arg1, dest);
+            return dest;
         case U + sizeop(2):
-            print("\tbitand %s 0xffff (sp)\n", arg1);
-            return "(sp)";
+            if (dest == NULL) dest = "(sp)";
+            print("\tbitand %s 0xffff %s\n", arg1, dest);
+            return dest;
         case I + sizeop(4):
         case U + sizeop(4):
-            return arg1;
+            return copy(arg1, dest);
         }
-        break;
 
     case BCOM:
     case NEG:
@@ -354,9 +428,10 @@ static const char *eval_value(Node p)
             case NEG:  op = "neg";    break;
             }
             assert(op != NULL);
-            arg1 = eval_value(p->kids[0]);
-            print("\t%s %s (sp)\n", op, arg1);
-            return "(sp)";
+            arg1 = eval_value(p->kids[0], NULL);
+            if (dest == NULL) dest = "(sp)";
+            print("\t%s %s %s\n", op, arg1, dest);
+            return dest;
         }
 
     case ADD:
@@ -383,22 +458,24 @@ static const char *eval_value(Node p)
             case RSH:  op = optype(p->op) == I ? "sshiftr" : "ushiftr"; break;
             }
             assert(op != NULL);
-            arg2 = eval_value(p->kids[1]);
-            arg1 = eval_value(p->kids[0]);
-            print("\t%s %s %s (sp)\n", op, arg1, arg2);
-            return "(sp)";
+            arg2 = eval_value(p->kids[1], NULL);
+            arg1 = eval_value(p->kids[0], NULL);
+            if (dest == NULL) dest = "(sp)";
+            print("\t%s %s %s %s\n", op, arg1, arg2, dest);
+            return dest;
         }
     case DIV:
     case MOD:
         {
             const char *op = generic(p->op) == DIV ? "div" : "mod";
             assert(opsize(p->op) == 4);
-            arg2 = eval_value(p->kids[1]);
-            arg1 = eval_value(p->kids[0]);
+            arg2 = eval_value(p->kids[1], NULL);
+            arg1 = eval_value(p->kids[0], NULL);
+            if (dest == NULL) dest = "(sp)";
             if (optype(p->op) == I)  /* signed div/mod */
             {
-                print("\t%s %s %s (sp)\n", op, arg1, arg2);
-                return "(sp)";
+                print("\t%s %s %s %s\n", op, arg1, arg2, dest);
+                return dest;
             }
             else  /* unsigned div/mod */
             {
@@ -409,26 +486,26 @@ static const char *eval_value(Node p)
                 if (strcmp(arg2, "(sp)") == 0) ++stack_args;
                 if (stack_args > 0) print("\tstkcopy %d\n", stack_args);
                 label = genlabel(2);
-                print("\tbitor %s %s (sp)\n"              /* arg1 arg2 */
-                      "\tjge (sp) 0 :%d\n"                /* l0 */
-                      "\tcallfii :_u%s %s %s (sp)\n"      /* op arg1 arg2 */
-                      "\tjump :%d\n"                      /* l1 */
-                      ":%d\n\t%s %s %s (sp)\n"            /* l0 op arg1 arg2 */
-                      ":%d\n",                            /* l1 */
+                print("\tbitor %s %s (sp)\n"          /* arg1 arg2 */
+                      "\tjge (sp) 0 :%d\n"            /* l0 */
+                      "\tcallfii :_u%s %s %s %s\n"    /* op arg1 arg2 dest */
+                      "\tjump :%d\n"                  /* l1 */
+                      ":%d\n\t%s %s %s %s\n"          /* l0 op arg1 arg2 dest */
+                      ":%d\n",                        /* l1 */
                       arg1, arg2,
                       label+0,
-                      op, arg1, arg2,
+                      op, arg1, arg2, dest,
                       label+1,
-                      label+0, op, arg1, arg2,
+                      label+0, op, arg1, arg2, dest,
                       label+1 );
-                return "(sp)";
+                return dest;
 #if 0
                 /* Alternative: always perform the call, which generates less
                    code and executes less instructions when the _udiv/_umod has
                    to be called anyway, but is more expensive when used with
                    small integers. */
-                print("\tcallfii :_u%s %s %s (sp)\n", op, arg1, arg2);
-                return "(sp)";
+                print("\tcallfii :_u%s %s %s %s\n", op, arg1, arg2, dest);
+                return dest;
 #endif
             }
         }
@@ -445,29 +522,37 @@ static void X(emit)(Node p)
         switch (generic(p->op))
         {
         case CALL:
-            eval_call(p, 0);
+            eval_call(p, "~");
             break;
 
         case ARG:
             assert(opsize(p->op) == 4);
             assert(p->x.argno > 0);
-            print("\tastore {4} %d %s\n", -p->x.argno, eval_value(p->kids[0]));
+            print("\tastore {4} %d %s\n",
+                  -p->x.argno, eval_value(p->kids[0], NULL));
             break;
 
-        case ASGN:
+        case ASGN:;
+            if (access_register(p->kids[0]))
+            {
+                /* Assign to register */
+                eval_value(p->kids[1],
+                           stringf("{%d}", p->kids[0]->syms[0]->x.offset));
+            }
+            else
             {
                 const char *lhs, *rhs;
                 if (p->op == ASGN + B)
                 {
                     assert(p->kids[1]->op == INDIR + B);
-                    lhs = eval_value(p->kids[0]);
-                    rhs = eval_value(p->kids[1]->kids[0]);
+                    lhs = eval_value(p->kids[0], NULL);
+                    rhs = eval_value(p->kids[1]->kids[0], NULL);
                     print("\tmcopy %d %s %s\n", p->syms[0]->u.c.v.i, rhs, lhs);
                 }
                 else
                 {
-                    rhs = eval_value(p->kids[1]);
-                    lhs = eval_value(p->kids[0]);
+                    rhs = eval_value(p->kids[1], NULL);
+                    lhs = eval_value(p->kids[0], NULL);
                     switch (p->op)
                     {
                     case ASGN + I + sizeop(1):
@@ -497,7 +582,7 @@ static void X(emit)(Node p)
             else
             {
                 assert(p->kids[0]->op == INDIR + P + sizeop(4));
-                print("\tjumpabs %s\n", eval_value(p->kids[0]));
+                print("\tjumpabs %s\n", eval_value(p->kids[0], NULL));
             }
             break;
 
@@ -537,13 +622,13 @@ static void X(emit)(Node p)
 
                 assert(op != NULL);
                 assert(p->syms[0]->scope == LABELS);
-                arg2 = eval_value(p->kids[1]);
-                arg1 = eval_value(p->kids[0]);
+                arg2 = eval_value(p->kids[1], NULL);
+                arg1 = eval_value(p->kids[0], NULL);
                 print("\t%s %s %s :%s\n", op, arg1, arg2, p->syms[0]->name);
             } break;
 
         case RET:
-            print("\treturn %s\n", eval_value(p->kids[0]));
+            print("\treturn %s\n", eval_value(p->kids[0], NULL));
             break;
 
         default:
